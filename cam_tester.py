@@ -48,9 +48,16 @@ p.setRealTimeSimulation(1)
 view_matrix = p.computeViewMatrix([0,0,2],[0,0,0], [0,1,0])
 pm = get_projection_matrix(60)
 
+f = np.array(pm).reshape(4,4).T[0][0]
+
+print(f, true_z_from_depth_buffer(f))
+
+
 _,_, c, d, _ = get_image(view_matrix, pm)
 
 time.sleep(2)
+
+print(d)
 
 d = true_z_from_depth_buffer(d)
 

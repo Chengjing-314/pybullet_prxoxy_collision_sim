@@ -12,12 +12,16 @@ IMG_LEN = 1024
 FOV = 60
 NEAR = 0.1
 FAR = 5.1
-f = (IMG_LEN // 2) * 1 / (np.tan(np.deg2rad(FOV)/2)) # Focal length
+f = (IMG_LEN / 2) * 1 / (np.tan(np.deg2rad(FOV)/2)) # Focal length
 
 
-def get_focus(Image_width, fov):
+
+
+def get_focus(Image_height, fov):
     """
     Calculate the focus of the camera.
+
+    https://fruty.io/2019/08/29/augmented-reality-with-opencv-and-opengl-the-tricky-projection-matrix/
 
     Args:
         image_len (int): image length. Defaults to IMG_LEN.
@@ -26,7 +30,7 @@ def get_focus(Image_width, fov):
     Returns:
         focus (float): focus of the camera.
     """
-    return Image_width / (np.tan(np.deg2rad(fov)/2))
+    return (Image_height / 2) / (np.tan(np.deg2rad(fov)/2))
 
 
 def to_homog(points):
@@ -152,8 +156,6 @@ def get_camera(extrin, width = IMG_LEN, height = IMG_LEN, f = f):
         camera object for open3d cloud generation. 
     """
     intrinsic = o3d.camera.PinholeCameraIntrinsic(width, height, f, f, (width + 1)/2, (height + 1)/2)
-    print("intrinsic_matrix: ", intrinsic.intrinsic_matrix)
-    print()
     cam = o3d.camera.PinholeCameraParameters()
     cam.intrinsic = intrinsic
     cam.extrinsic = extrin
@@ -172,9 +174,6 @@ def true_z_from_depth_buffer(depthImg, far = FAR, near = NEAR):
         depthImg (numpy array): real depth in world frame
 
     """
-    
-    # print(np.max(depthImg), np.min(depthImg))
-
 
     depthImg = far * near / (far - (far-near) * depthImg)
     
@@ -244,14 +243,13 @@ def place_mesh(mesh):
     return mID
 
 
-def set_joints_and_collision_status(pandaUid, angles, clientID):
-    panda_joint_id = [0,1,2,3,4,5,6,9,10]
+def set_joints_and_get_collision_status(pandaUid, angles, clientID):
+    panda_joint_id = [0,1,2,3,4,5,6]
     for i in range(len(angles)):
-        p.resetJointState(pandaUid,panda_joint_id[i],angles[i])
+        p.resetJointState(pandaUid,panda_joint_id[i], angles[i])
     p.performCollisionDetection(clientID)
     c = p.getContactPoints(bodyA = pandaUid, physicsClientId = clientID)
-    return True if c else False #FIXME: 
-    # return (True,c[0][5]) if c else False #FIXME: 
+    return 1 if c else -1 #FIXME: 
 
 
 

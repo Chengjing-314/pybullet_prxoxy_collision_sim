@@ -3,7 +3,7 @@ import pybullet_data as pd
 import numpy as np
 from utils.general_util import *
 from scipy.spatial.transform import Rotation as R
-from PIL import Image
+import imageio
 import h5py
 import time
 
@@ -11,7 +11,8 @@ class PybulletCamera():
     def __init__(self, num_poses, look_at,  IMG_WIDTH = 512, IMG_HEIGHT= 512, FOV = 60, NEAR = 0.05, FAR = 5):
         self.num_poses = num_poses
         self.look_at = look_at
-        self.focus = get_focus(IMG_WIDTH, fov = FOV)
+        self.projection_matrx = get_projection_matrix(fov = FOV, near = NEAR, far = FAR)
+        self.focus = get_focus(IMG_HEIGHT, FOV)
         self.intrinsic = np.array([[self.focus, 0, (IMG_WIDTH + 1)/ 2], 
                                    [0, self.focus, (IMG_HEIGHT + 1) / 2],
                                    [0, 0, 1]])
@@ -20,12 +21,12 @@ class PybulletCamera():
         self.far = FAR
         self.near = NEAR
         self.poses = self.pose_generation(num_poses)
-        self.projection_matrx = get_projection_matrix(fov = FOV, near = NEAR, far = FAR)
+        
         
 
         
     def get_camera_rpy(self, cam_translation):
-        view_matrix = get_view_matrix(cam_translation, self.look_at, camera_up_vec=[0, 0, 1])
+        view_matrix = get_view_matrix(cam_translation, self.look_at, camera_up_vec=[0, 1, 0])
         view_matrix = np.array(view_matrix).reshape(4,4)
         gl2cv = R.from_euler("X", np.pi).as_matrix()
 
@@ -43,22 +44,23 @@ class PybulletCamera():
     def get_camera_image(self, view_matrix):
         _, _ , rgbImg, depthImg, _ = get_image(view_matrix, self.projection_matrx, width = self.image_width, height = self.image_height)
         depthImg = true_z_from_depth_buffer(depthImg, far = self.far, near = self.near)
-        before = np.copy(depthImg)
         depthImg = self.process_depth_image(depthImg)
-        loaded_depth_img = self.depth_image_from_load(depthImg)
-        print("diff: ", np.mean(np.abs(loaded_depth_img - before)))
-        return rgbImg, depthImg, before
+        # The difference is between original and saved depth image is less than 5*10^-9
+        loaded_depth_img = self.depth_image_from_load(depthImg) 
+        return rgbImg, depthImg, loaded_depth_img
+
 
     def process_depth_image(self, depth_img):
         mask = (depth_img == np.nan)
-        depth_img = depth_image_range_conversion(depth_img, old_max=self.far, old_min=self.near, new_min=0, new_max=255)
-        depth_img = np.around(depth_img).astype(np.uint8)
+        depth_img = depth_img * 1000
         depth_img[mask] = 0
         return depth_img
     
     def depth_image_from_load(self, depth_img):
         # Imitate behavior of reading and converting depth image from file
-        return depth_image_range_conversion(depth_img, self.near, self.far)
+        depth_img.astype(np.float32)
+        depth_img[depth_img == 0] = np.nan
+        return  depth_img / 1000
 
     def get_pose_img(self, i):
         view_matrix = self.get_view_matrix(i)
@@ -98,13 +100,11 @@ class PybulletCamera():
 
         cam_id = 'cam_' + str(cam_id)
 
-        color_img = Image.fromarray(color_img)
         color_path = os.path.join(path, cam_id + "_color.png")
-        color_img.save(color_path)
+        imageio.imwrite(color_path, color_img)
 
-        depth_img = Image.fromarray(depth_img)
         depth_path = os.path.join(path, cam_id + "_depth.png")
-        depth_img.save(depth_path)
+        imageio.imwrite(depth_path, depth_img)
         
 
     
@@ -134,11 +134,10 @@ class PybulletCamera():
 
         view_matrix[:3,:3] = view_matrix[:3,:3] @ gl2cv
 
-        print("get_pose:", view_matrix[:3,3])
-        print("set_pose:", self.poses[cam_pose,:3])
+        # print("get_pose:", view_matrix[:3,3])
+        # print("set_pose:", self.poses[cam_pose,:3])
 
-
-        print(self.intrinsic)
+        # print(self.intrinsic)
 
         extrinsic = view_matrix
 

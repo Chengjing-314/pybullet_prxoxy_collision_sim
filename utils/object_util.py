@@ -3,8 +3,10 @@ import numpy as np
 import pybullet_data as pd
 from numpy.random import default_rng
 from scipy.spatial.transform import Rotation as R
+from general_util import *
 import os
 import time
+import torch
 
 # NOTE: Pybullet default use quaternion for orientation, since we are using moveit for octomap collision, we collect data with euler angles.
 
@@ -63,7 +65,7 @@ class PybulletModelMover():
         rpy = R.from_quat(orn).as_euler('xyz').tolist()
         return pos, rpy
 
-    def object_pose_generation(self, num_objects, z_offset = 1.2, num_pose = 1):
+    def object_pose_generation(self, num_objects, z_offset = 0.68, num_pose = 1):
         if num_pose ==  1:
             poses = np.zeros((num_objects, 6))
         else:
@@ -109,8 +111,9 @@ class PybulletWorldManager():
             xyz, rpy = obj_pose["xyz"], obj_pose["rpy"]
             object_id = temp_world_mover.spawn_model(object, xyz, rpy)
             self.spawned_models[object] = object_id
-            time.sleep(0.5)
+            time.sleep(2)
             
+        time.sleep(2)
 
         for object in objects:
             xyz, rpy = temp_world_mover.get_model_pose(self.spawned_models[object])
@@ -143,4 +146,46 @@ class PybulletWorldManager():
     
     def disable_real_time_simulation(self):
         p.setRealTimeSimulation(0)
+
+
+class PandaArm():
+    def __init__(self, base_pose, num_poses, client_id, seed = False, seed_num = 0):
+        self.base_pose = base_pose
+        self.num_poses = num_poses
+
+        self.pandaID = p.loadURDF("panda_arm.urdf", base_pose, useFixedBase=True)
+        self.constraints = torch.FloatTensor([[-2.8973, 2.8973],
+                                             [-1.7628, 1.7628],
+                                             [-2.8973, 2.8973],
+                                             [-3.0718, -0.0698],
+                                             [-2.8973, 2.8973],
+                                             [-0.0175, 3.7525],
+                                             [-2.8973, 2.8973]])
+        if seed:
+            torch.manual_seed(seed_num)
+        
+        self.DOF = 7
+
+        self.cfgs = torch.rand((self.num_poses, self.DOF), dtype=torch.float32)
+        self.labels = torch.zeros(self.num_poses, dtype=torch.float)
+        self.cfgs = self.cfgs * (self.constraints[:, 1]-self.constraints[:, 0]) + self.constraints[:, 0]
+        self.client_id = client_id      
+
+
+
+    def label_generation(self):
+        for i in range(self.num_poses):
+            self.labels[i] = set_joints_and_get_collision_status(self.pandaID, self.cfgs[i], self.client_id)
+
+        print(f'{torch.sum(self.labels==1)} collisons, {torch.sum(self.labels==-1)} free')
+        
     
+    def save_data(self, path):
+        cfg_path = os.path.join(path, 'robot_config.pt')
+        label_path = os.path.join(path, 'collision_label.pt')
+        torch.save(self.cfgs, cfg_path)
+        torch.save(self.labels, label_path)
+
+    def remove_panda(self):
+        p.removeBody(self.pandaID)
+  

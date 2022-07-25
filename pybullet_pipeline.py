@@ -6,15 +6,16 @@ from numpy.random import default_rng
 from scipy.spatial.transform import Rotation as R
 import os
 import time
-from PIL import Image
 from utils.camera_util import *
 from utils.object_util import * 
 from tqdm import tqdm
 
-p.connect(p.GUI)
-p.setAdditionalSearchPath(pd.getDataPath())
+
 
 def main():
+
+    client = p.connect(p.GUI)
+    p.setAdditionalSearchPath(pd.getDataPath())
 
     model_path = "/home/chengjing/Desktop/pybullet-URDF-models/urdf_models/models"
     save_path = "/home/chengjing/Desktop/img_save_test"
@@ -34,6 +35,14 @@ def main():
 
     num_worlds = 1
 
+    base_pose = [0.6125, 0.5, 0.63]
+
+    num_robot_config = 10
+
+    seed = False
+    
+    seed_num = 0
+
 
     pybullet_world = PybulletWorldManager(num_worlds, object_dict, obj_limits, model_path)
 
@@ -42,11 +51,12 @@ def main():
 
     pybullet_world.set_world_gravity()
 
-    pybullet_world.enable_real_time_simulation()
-
     pybullet_world.load_default_world()
 
     for i, world in enumerate(tqdm(worlds, desc = "Total World")):
+
+        pybullet_world.enable_real_time_simulation()
+
         pybullet_world.pybullet_set_world(world)
 
         world_save_path = os.path.join(save_path, world)
@@ -75,7 +85,19 @@ def main():
 
         dump_world(world_dict, world, world_save_path)
 
+        pybullet_world.disable_real_time_simulation()
 
+        panda = PandaArm(base_pose, num_robot_config, client, seed, seed_num)
+
+        panda.label_generation()
+
+        panda.save_data(world_save_path)
+
+        pybullet_world.pybullet_remove_world()
+
+    
+
+        
 
 
 if __name__ == "__main__":
