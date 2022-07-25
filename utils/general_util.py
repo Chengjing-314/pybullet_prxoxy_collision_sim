@@ -5,6 +5,7 @@ from scipy.spatial.transform import Rotation
 import numpy as np
 import open3d as o3d
 from matplotlib import pyplot as plt
+import json
 
 
 IMG_LEN = 1024
@@ -14,7 +15,7 @@ FAR = 5.1
 f = (IMG_LEN // 2) * 1 / (np.tan(np.deg2rad(FOV)/2)) # Focal length
 
 
-def get_focus(image_len = IMG_LEN, fov = FOV):
+def get_focus(Image_width, fov):
     """
     Calculate the focus of the camera.
 
@@ -25,7 +26,7 @@ def get_focus(image_len = IMG_LEN, fov = FOV):
     Returns:
         focus (float): focus of the camera.
     """
-    return (image_len // 2) * 1 / (np.tan(np.deg2rad(fov)/2))
+    return Image_width / (np.tan(np.deg2rad(fov)/2))
 
 
 def to_homog(points):
@@ -81,11 +82,11 @@ def get_view_matrix(eye_pos, target_pos, camera_up_vec):
                                cameraUpVector=camera_up_vec)
 
 
-def get_projection_matrix(fov=FOV, aspect = 1.0, nearVal = NEAR, farVal = FAR):
+def get_projection_matrix(fov=FOV, aspect = 1.0, near = NEAR, far = FAR):
     return  p.computeProjectionMatrixFOV(fov=fov,
                                          aspect=aspect,
-                                         nearVal=nearVal,
-                                         farVal=farVal)
+                                         nearVal=near,
+                                         farVal=far)
 
 
 def get_image(viewMatrix, projectionMatrix, width = IMG_LEN, height = IMG_LEN):
@@ -107,7 +108,8 @@ def get_image(viewMatrix, projectionMatrix, width = IMG_LEN, height = IMG_LEN):
                                               projectionMatrix=projectionMatrix)
     
     RGB_img = RGB_img[:,:,:3] # Dropped Alha Channel
-    Depth_img = Depth_img[:,:,None] # Add thrid axis
+    # Depth_img = Depth_img[:,:,None] # Add thrid axis
+
     return width, height, RGB_img, Depth_img, segmentation_img 
 
 
@@ -138,7 +140,7 @@ def get_extrin(viewMatrix):
     corrected_extrin = convention_tf @ np.array(list(viewMatrix)).reshape((4,4)).T
     return corrected_extrin
 
-def get_camera(extrin):
+def get_camera(extrin, width = IMG_LEN, height = IMG_LEN, f = f):
     """
     Return a camera object from extrinsic matrix from get_extrin for point cloud
     generation
@@ -149,9 +151,9 @@ def get_camera(extrin):
     Returns:
         camera object for open3d cloud generation. 
     """
-    intrinsic = o3d.camera.PinholeCameraIntrinsic(IMG_LEN, IMG_LEN, f, f, 
-                                                  (IMG_LEN-1) / 2, 
-                                                  (IMG_LEN-1) / 2)
+    intrinsic = o3d.camera.PinholeCameraIntrinsic(width, height, f, f, (width + 1)/2, (height + 1)/2)
+    print("intrinsic_matrix: ", intrinsic.intrinsic_matrix)
+    print()
     cam = o3d.camera.PinholeCameraParameters()
     cam.intrinsic = intrinsic
     cam.extrinsic = extrin
@@ -161,12 +163,20 @@ def true_z_from_depth_buffer(depthImg, far = FAR, near = NEAR):
     """
     function will take in a depth buffer from depth camera in NDC coordinate and
     convert it in to true z value. 
+
+    https://docs.google.com/document/d/10sXEhzFRSnvFcl3XxNGhnD4N2SedqwdAvK3dsihxVUA/edit#
+
+    Page 51
     
     Args:
         depthImg (numpy array): real depth in world frame
+
     """
-    depthImg = 2 * depthImg - 1
-    depthImg = 2 * far * near / (far + near - (far-near) * depthImg)
+    
+    # print(np.max(depthImg), np.min(depthImg))
+
+
+    depthImg = far * near / (far - (far-near) * depthImg)
     
     return depthImg
     
@@ -215,6 +225,13 @@ def pcd_to_mesh(pcd, downsize = True, voxel_size = 0.095):
     
     return mesh
 
+def get_pcd(cam, rgbd):
+    return o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, 
+                                                     cam.intrinsic, 
+                                                     cam.extrinsic)
+
+            
+
 
 def place_mesh(mesh):
     saveto = './mesh.obj'
@@ -235,5 +252,21 @@ def set_joints_and_collision_status(pandaUid, angles, clientID):
     c = p.getContactPoints(bodyA = pandaUid, physicsClientId = clientID)
     return True if c else False #FIXME: 
     # return (True,c[0][5]) if c else False #FIXME: 
+
+
+
+def depth_image_range_conversion(depth_image, new_min, new_max, old_min = 0, old_max = 255):
+    depth_image = np.array(depth_image, dtype=np.float32)
+    depth_image = (depth_image - old_min) * (new_max - new_min) / (old_max - old_min) + new_min
+    return depth_image
+
+
+def dump_world(world_dict,world, path):
+    path = os.path.join(path, world + ".json")
+    with open(path, 'w') as f:
+        json.dump(world_dict, f, indent = 4)
+
+
+
         
 
