@@ -3,7 +3,7 @@ import numpy as np
 import pybullet_data as pd
 from numpy.random import default_rng
 from scipy.spatial.transform import Rotation as R
-from general_util import *
+from utils.general_util import *
 import os
 import time
 import torch
@@ -153,7 +153,7 @@ class PandaArm():
         self.base_pose = base_pose
         self.num_poses = num_poses
 
-        self.pandaID = p.loadURDF("panda_arm.urdf", base_pose, useFixedBase=True)
+        self.pandaID = p.loadURDF("franka_panda/panda.urdf", base_pose, useFixedBase=True)
         self.constraints = torch.FloatTensor([[-2.8973, 2.8973],
                                              [-1.7628, 1.7628],
                                              [-2.8973, 2.8973],
@@ -176,7 +176,7 @@ class PandaArm():
     def label_generation(self):
         for i in range(self.num_poses):
             self.labels[i] = set_joints_and_get_collision_status(self.pandaID, self.cfgs[i], self.client_id)
-
+        print()
         print(f'{torch.sum(self.labels==1)} collisons, {torch.sum(self.labels==-1)} free')
         
     

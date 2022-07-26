@@ -54,11 +54,12 @@ class PybulletCamera():
         mask = (depth_img == np.nan)
         depth_img = depth_img * 1000
         depth_img[mask] = 0
+        depth_img = depth_img.astype(np.uint16)
         return depth_img
     
     def depth_image_from_load(self, depth_img):
         # Imitate behavior of reading and converting depth image from file
-        depth_img.astype(np.float32)
+        depth_img = depth_img.astype(np.float32)
         depth_img[depth_img == 0] = np.nan
         return  depth_img / 1000
 
