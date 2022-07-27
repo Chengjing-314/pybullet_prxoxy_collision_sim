@@ -24,27 +24,16 @@ class PybulletCamera():
         
         
 
-        
-    def get_camera_rpy(self, cam_translation):
-        view_matrix = get_view_matrix(cam_translation, self.look_at, camera_up_vec=[0, 1, 0])
-        view_matrix = np.array(view_matrix).reshape(4,4)
-        gl2cv = R.from_euler("X", np.pi).as_matrix()
-
-        rotation = view_matrix[:3,:3] @ gl2cv
-
-        rpy = R.from_matrix(np.linalg.inv(rotation)).as_euler("xyz")
-        
-        return list(rpy)
-
     def get_view_matrix(self, i):
-        view_matrix = get_view_matrix(self.poses[i,:3], self.look_at, camera_up_vec=[0, 1, 0])
+        view_matrix = get_view_matrix(self.poses[i,:3], self.look_at, camera_up_vec=[0, 0, 1])
         return  view_matrix
 
 
     def get_camera_image(self, view_matrix):
         _, _ , rgbImg, depthImg, _ = get_image(view_matrix, self.projection_matrx, width = self.image_width, height = self.image_height)
         depthImg = true_z_from_depth_buffer(depthImg, far = self.far, near = self.near)
-        depthImg = self.process_depth_image(depthImg)
+        # depthImg = self.process_depth_image(depthImg) 
+        depthImg = self.process_depth_image_range_conversion(depthImg)
         # The difference is between original and saved depth image is less than 5*10^-9
         loaded_depth_img = self.depth_image_from_load(depthImg) 
         return rgbImg, depthImg, loaded_depth_img
@@ -52,16 +41,24 @@ class PybulletCamera():
 
     def process_depth_image(self, depth_img):
         mask = (depth_img == np.nan)
-        depth_img = depth_img * 1000
+        depth_img = depth_img * 10000 # TODO
         depth_img[mask] = 0
         depth_img = depth_img.astype(np.uint16)
+        return depth_img
+    
+    def process_depth_image_range_conversion(self, depth_img):
+        mask = (depth_img == np.nan)
+        depth_img = depth_image_range_conversion(depth_img, 0, 2**16-1, self.near * 5, self.far).astype(np.uint16)
+        depth_img[mask] = 0
         return depth_img
     
     def depth_image_from_load(self, depth_img):
         # Imitate behavior of reading and converting depth image from file
         depth_img = depth_img.astype(np.float32)
         depth_img[depth_img == 0] = np.nan
-        return  depth_img / 1000
+        # return  depth_img / 10000
+        depth_img = depth_image_range_conversion(depth_img, self.near * 5, self.far, 0, 2**16-1)
+        return depth_img
 
     def get_pose_img(self, i):
         view_matrix = self.get_view_matrix(i)
@@ -85,7 +82,8 @@ class PybulletCamera():
         rpy = self.get_camera_rpy(cam_pose)
 
 
-        return np.array([cam_x, cam_y, cam_z, rpy[0], rpy[1], rpy[2]])
+        return np.array([cam_x, cam_y, cam_z, rpy[0], rpy[1], rpy[2]]) #TODO
+
     
 
     def pose_generation(self, num_poses,theta = np.pi * (1 / 3), phi = np.pi * (1 / 3) , radius = 1.65, x = 0.75, y = 0.4, z= 1.07):
@@ -126,23 +124,40 @@ class PybulletCamera():
 
 
 
-    def save_pcd(self, cam_pose, color_img, depth_img, path):
-        view_matrix = np.array(self.get_view_matrix(cam_pose)).reshape(4,4).T
-
+    def get_camera_rpy(self, cam_translation):
+        view_matrix = get_view_matrix(cam_translation, self.look_at, camera_up_vec=[0, 0, 1])
+        view_matrix = np.array(view_matrix).reshape(4,4).T # OpenGL is column major :(
+        # view_matrix = np.linalg.inv(view_matrix)
         gl2cv = R.from_euler("X", np.pi).as_matrix()
 
-        view_matrix = np.linalg.inv(view_matrix)
+        rotation = np.linalg.inv(view_matrix[:3,:3]) @ gl2cv
 
-        view_matrix[:3,:3] = view_matrix[:3,:3] @ gl2cv
 
-        # print("get_pose:", view_matrix[:3,3])
-        # print("set_pose:", self.poses[cam_pose,:3])
+        rpy = R.from_matrix(rotation).as_euler("xyz")
+        
+        return list(rpy)
 
-        # print(self.intrinsic)
 
-        extrinsic = view_matrix
+    def save_pcd(self, cam_pose, color_img, depth_img, path):
 
-        cam = get_camera(extrin = extrinsic, height=self.image_height, width=self.image_width, f = self.focus)
+        # view_matrix = np.array(self.get_view_matrix(cam_pose)).reshape(4,4).T
+
+        # gl2cv = R.from_euler("X", np.pi).as_matrix()
+
+        # view_matrix = np.linalg.inv(view_matrix)
+
+        # view_matrix[:3,:3] = view_matrix[:3,:3] @ gl2cv
+
+        # # view_matrix[:3,3] = self.poses[cam_pose][:3]
+
+        # # print("get_pose:", view_matrix[:3,3])
+        # # print("set_pose:", self.poses[cam_pose,:3])
+
+        # # print(self.intrinsic)
+
+        # extrinsic = view_matrix
+
+        cam = get_camera(extrin = np.eye(4), height=self.image_height, width=self.image_width, f = self.focus) 
 
         rgbd = buffer_to_rgbd(color_img, depth_img)
 

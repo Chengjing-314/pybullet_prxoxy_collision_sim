@@ -28,7 +28,7 @@ def main():
 
     obj_limits = {"x":(0.825, 1.025), "y":(0.25, 0.55), "z":(0, 0.05)}
 
-    camera_look_at = [0.75, 0.5, 0.63] #TODO
+    camera_look_at = [0.75, 0.5, 0.63] 
 
 
     num_camera_poses = 2
@@ -77,6 +77,8 @@ def main():
 
             color_img, depth_img, loaded_depth_img = camera.get_pose_img(j)
 
+            print(camera.poses[j])
+
             camera.save_image(color_img, depth_img, cam_path, j)
             camera.save_pcd(j, color_img, loaded_depth_img, cam_path)
         
@@ -93,12 +95,10 @@ def main():
 
         panda.save_data(world_save_path)
 
+        panda.remove_panda()
+
         pybullet_world.pybullet_remove_world()
 
     
-
-        
-
-
 if __name__ == "__main__":
     main()
