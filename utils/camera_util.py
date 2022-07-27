@@ -1,11 +1,9 @@
-import pybullet as p
-import pybullet_data as pd
 import numpy as np
 from utils.general_util import *
 from scipy.spatial.transform import Rotation as R
 import imageio
 import h5py
-import time
+
 
 class PybulletCamera():
     def __init__(self, num_poses, look_at,  IMG_WIDTH = 512, IMG_HEIGHT= 512, FOV = 60, NEAR = 0.05, FAR = 5):

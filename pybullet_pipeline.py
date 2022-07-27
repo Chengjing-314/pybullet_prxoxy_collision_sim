@@ -1,11 +1,7 @@
-from calendar import c
 import pybullet as p 
-import numpy as np
 import pybullet_data as pd
-from numpy.random import default_rng
 from scipy.spatial.transform import Rotation as R
 import os
-import time
 from utils.camera_util import *
 from utils.object_util import * 
 from tqdm import tqdm

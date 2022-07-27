@@ -1,9 +1,7 @@
 import numpy as np
-from geometry_msgs.msg import PoseStamped
 from scipy.spatial.transform import Rotation as R
 from moveit_msgs.msg import RobotState, DisplayTrajectory, RobotTrajectory
 from moveit_msgs.srv import GetStateValidityRequest, GetStateValidity
-from sensor_msgs.msg import JointState, PointCloud2
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from std_msgs.msg import Float64MultiArray, Header
 from utils.data_reader_util import *
@@ -55,6 +53,9 @@ class MoveitDataGen(object):
 
             in_collision = not result.valid
             self.labels[i]  = 1 if in_collision else -1 # FIXME: change to 0?
+    
+    def dump_data(self, path):
+        torch.save(self.labels, path)
 
         
     
@@ -136,7 +137,7 @@ class MoveitDataGen(object):
 
 
 
-def fake_sensor(cam, world, path): # cam and world are int, not str
+def fake_sensor(world, cam, path): # cam and world are int, not str
 
     cam_name= "cam_" + str(cam)
     world_name = "world_" + str(world)

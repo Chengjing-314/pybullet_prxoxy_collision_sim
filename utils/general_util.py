@@ -1,10 +1,8 @@
 import os
 import pybullet as p
-import pybullet_data as pd
 from scipy.spatial.transform import Rotation
 import numpy as np
 import open3d as o3d
-from matplotlib import pyplot as plt
 import json
 
 
