@@ -91,14 +91,14 @@ class PybulletWorldManager():
         self.offset = z_offset
         self.spawned_models = {}
 
-        self.world_pose_generation()
+        self.world_pose_generation(z_offset=self.offset)
 
-    def world_pose_generation(self):
+    def world_pose_generation(self, z_offset = 0.68):
         
         for scene in self.world.keys():
            objects = list(self.world[scene].keys())
            temp_world_mover = PybulletModelMover(objects = objects, limits = self.object_limits, path=self.model_path)
-           poses = temp_world_mover.object_pose_generation(len(objects))
+           poses = temp_world_mover.object_pose_generation(len(objects), z_offset = z_offset)
            for i, object in enumerate(objects):
             self.world[scene][object]["drop_pose"] = {"xyz": poses[i,:3].tolist(), "rpy": poses[i,3:].tolist()}
 

@@ -1,4 +1,6 @@
 import json
+import numpy as np
+from utils.general_util import * 
 
 
 def get_world_dict(path):
@@ -24,3 +26,17 @@ def get_camera_near_far(world_dict):
     near, far = camera_dict["near"], camera_dict["far"]
     
     return near, far
+
+def get_camera_multipler(world_dict):
+    camera_dict = world_dict["camera"]
+    multiplier = camera_dict["multipler"]
+
+    return multiplier
+
+
+def depth_image_to_true_depth(depth_image, multipler, near, far):
+    uint16_min, uint16_max  = 0, 2**16 - 1
+    depth_image = depth_image.astype(np.float32)
+    depth_image[depth_image == 0] = np.nan
+    depth_image = depth_image_range_conversion(depth_image, near * multipler, far, uint16_min, uint16_max)
+    return depth_image

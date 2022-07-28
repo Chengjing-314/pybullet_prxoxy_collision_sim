@@ -6,22 +6,21 @@ import h5py
 
 
 class PybulletCamera():
-    def __init__(self, num_poses, look_at,  IMG_WIDTH = 512, IMG_HEIGHT= 512, FOV = 60, NEAR = 0.05, FAR = 5):
+    def __init__(self, num_poses, look_at, multipler = 10, img_width = 512, img_height= 512, fov = 60, near = 0.05, far = 5):
         self.num_poses = num_poses
         self.look_at = look_at
-        self.projection_matrx = get_projection_matrix(fov = FOV, near = NEAR, far = FAR)
-        self.focus = get_focus(IMG_HEIGHT, FOV)
-        self.intrinsic = np.array([[self.focus, 0, (IMG_WIDTH + 1)/ 2], 
-                                   [0, self.focus, (IMG_HEIGHT + 1) / 2],
+        self.projection_matrx = get_projection_matrix(fov = fov, near = near, far = far)
+        self.focus = get_focus(img_height, fov)
+        self.intrinsic = np.array([[self.focus, 0, (img_width + 1)/ 2], 
+                                   [0, self.focus, (img_height + 1) / 2],
                                    [0, 0, 1]])
-        self.image_height = IMG_HEIGHT
-        self.image_width = IMG_WIDTH
-        self.far = FAR
-        self.near = NEAR
-        self.poses = self.pose_generation(num_poses)
+        self.image_height = img_height
+        self.image_width = img_width
+        self.far = far
+        self.near = near
+        self.multipler = multipler
         
         
-
     def get_view_matrix(self, i):
         view_matrix = get_view_matrix(self.poses[i,:3], self.look_at, camera_up_vec=[0, 0, 1])
         return  view_matrix
@@ -39,23 +38,25 @@ class PybulletCamera():
 
     def process_depth_image(self, depth_img):
         mask = (depth_img == np.nan)
-        depth_img = depth_img * 10000 # TODO
+        depth_img = depth_img * 10000 
         depth_img[mask] = 0
         depth_img = depth_img.astype(np.uint16)
         return depth_img
     
     def process_depth_image_range_conversion(self, depth_img):
+        uint16_min, uint16_max  = 0, 2**16 - 1
         mask = (depth_img == np.nan)
-        depth_img = depth_image_range_conversion(depth_img, 0, 2**16-1, self.near * 5, self.far).astype(np.uint16)
+        depth_img = depth_image_range_conversion(depth_img, uint16_min, uint16_max, self.near * self.multipler, self.far).astype(np.uint16)
         depth_img[mask] = 0
         return depth_img
     
     def depth_image_from_load(self, depth_img):
         # Imitate behavior of reading and converting depth image from file
+        uint16_min, uint16_max  = 0, 2**16 - 1
         depth_img = depth_img.astype(np.float32)
         depth_img[depth_img == 0] = np.nan
         # return  depth_img / 10000
-        depth_img = depth_image_range_conversion(depth_img, self.near * 5, self.far, 0, 2**16-1)
+        depth_img = depth_image_range_conversion(depth_img, self.near * self.multipler, self.far, uint16_min, uint16_max)
         return depth_img
 
     def get_pose_img(self, i):
@@ -63,16 +64,18 @@ class PybulletCamera():
         return self.get_camera_image(view_matrix)
 
 
-    def pose_gen(self, theta , phi, radius, x, y, z):
+    def pose_gen(self, theta , phi, radius, x, y, z, theta_var = np.pi / 6, phi_var = np.pi / 12, radius_var = 0.05):
 
         # Parametric coordinate generation
-        theta = np.random.rand() * 2 * theta + (-theta)  #  ± 15 degree default
-        phi  = np.random.rand() * 2 * phi + (-phi)
-        radius = radius + (np.random.rand() * 0.2 + -0.1) # ± 10 cm radius
+        theta = (np.random.rand() * 2  - 1) * theta_var + theta 
+        phi  = (np.random.rand() * 2  - 1) * phi_var + phi
+        radius = (np.random.rand() * 1 + -1) * radius_var + radius
 
-        cam_x  = radius * np.cos(theta) * np.sin(phi) + x
-        cam_y = radius * np.sin(theta) * np.sin(phi) + y 
-        cam_z = radius * np.cos(phi) + z
+        print("theta: ", theta, "phi: ", phi, "radius: ", radius)
+
+        cam_x  = radius  * np.cos(phi) * np.cos(theta) + x
+        cam_y = radius  * np.cos(phi) * np.sin(theta) + y 
+        cam_z = radius * np.sin(phi) + z
 
 
         cam_pose = np.array([cam_x, cam_y, cam_z]) 
@@ -80,15 +83,18 @@ class PybulletCamera():
         rpy = self.get_camera_rpy(cam_pose)
 
 
-        return np.array([cam_x, cam_y, cam_z, rpy[0], rpy[1], rpy[2]]) #TODO
+        return np.array([cam_x, cam_y, cam_z, rpy[0], rpy[1], rpy[2]])
 
     
 
-    def pose_generation(self, num_poses,theta = np.pi * (1 / 3), phi = np.pi * (1 / 3) , radius = 1.65, x = 0.75, y = 0.4, z= 1.07):
+    def pose_generation(self, num_poses,theta = np.pi * (1 / 3), phi = np.pi * (1 / 3) , radius = 1.65, x = 0.75, y = 0.4, z= 1.07, 
+    theta_var = np.pi / 6, phi_var = np.pi / 12, radius_var = 0.05):
+
         poses = np.zeros((num_poses, 6))
 
         for i in range(num_poses):
-            poses[i,:] = self.pose_gen(theta = theta, phi = phi, radius = radius,  x = x, y = y, z = z)
+            poses[i,:] = self.pose_gen(theta = theta, phi = phi, radius = radius,  x = x, y = y, z = z, 
+                                        theta_var=theta_var, phi_var=phi_var, radius_var=radius_var)
         self.poses = poses
         
         return poses
@@ -118,6 +124,7 @@ class PybulletCamera():
         cam_dict["near"] = self.near
         cam_dict["image_height"] = self.image_height
         cam_dict["image_width"] = self.image_width
+        cam_dict["multipler"] = self.multipler
         return cam_dict
 
 
@@ -136,7 +143,7 @@ class PybulletCamera():
         return list(rpy)
 
 
-    def save_pcd(self, cam_pose, color_img, depth_img, path):
+    def save_pcd(self, color_img, depth_img, path):
 
         # view_matrix = np.array(self.get_view_matrix(cam_pose)).reshape(4,4).T
 

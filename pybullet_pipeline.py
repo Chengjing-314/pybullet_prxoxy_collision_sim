@@ -1,6 +1,5 @@
 import pybullet as p 
 import pybullet_data as pd
-from scipy.spatial.transform import Rotation as R
 import os
 from utils.camera_util import *
 from utils.object_util import * 
@@ -10,60 +9,74 @@ from tqdm import tqdm
 
 def main():
 
+    pi = np.pi
+
     client = p.connect(p.GUI)
     p.setAdditionalSearchPath(pd.getDataPath())
 
+    # Overall Parameters
+    num_camera_poses = 2 # Number of camera poses per world
+    num_worlds = 2 # Number of worlds
     model_path = "/home/chengjing/Desktop/pybullet-URDF-models/urdf_models/models"
     save_path = "/home/chengjing/Desktop/img_save_test"
 
+
+    # Object Parameters
     object_dict = {"book_1": {}, 
                 "fork": {},
                 "knife": {},
                 "mug": {},
                 "sugar_box": {}}
+    obj_limits = {"x":(0.665, 0.965), "y":(0.2, 0.8), "z":(0, 0.015)} # Object spawning limits
+    obj_z_offset = 0.68 # offset of the table
 
-    obj_limits = {"x":(0.825, 1.025), "y":(0.25, 0.55), "z":(0, 0.05)}
+    # Camera Parameters
+    camera_look_at = [0.815, 0.5, 0.63] # Camera look at point
+    camera_phi =  pi *  4 / 9  # Camera phi angle
+    camera_theta = pi   # Camera theta angle
+    camera_radius = 0.85 # Camera radius
+    camera_x, camera_y, camera_z = camera_look_at[0], camera_look_at[1], camera_look_at[2]
+    camera_multipler = 10
+    camera_phi_var, camera_theta_var, camera_radius_var = pi / 12, pi / 6, 0.05 # Camera phi theta and radius variance
 
-    camera_look_at = [0.75, 0.5, 0.63] 
 
-
-    num_camera_poses = 2
-
-    num_worlds = 1
-
-    base_pose = [0.6125, 0.5, 0.63]
-
+    # Panda arm parameter
+    panda_base_pose = [0.315, 0.5, 0.63] 
     num_robot_config = 10
-
     seed = False
-    
     seed_num = 0
 
+    # p.loadURDF("franka_panda/panda.urdf", panda_base_pose)
 
-    pybullet_world = PybulletWorldManager(num_worlds, object_dict, obj_limits, model_path)
+    # Initialize world
+    pybullet_world = PybulletWorldManager(num_worlds, object_dict, obj_limits, model_path, obj_z_offset)
 
-
+    # Get the world list for iteration
     worlds = pybullet_world.get_world_list()
-
     pybullet_world.set_world_gravity()
 
+    # Load default world with plane and table
     pybullet_world.load_default_world()
 
     for i, world in enumerate(tqdm(worlds, desc = "Total World")):
-
+        # Enable real time sim for object to drop
         pybullet_world.enable_real_time_simulation()
 
+        # Set current world to generated world 
         pybullet_world.pybullet_set_world(world)
 
         world_save_path = os.path.join(save_path, world)
 
         try:
             os.mkdir(world_save_path)
-        except FileExistsError:
+        except FileExistsError: # Exit if the folder already exists
             print("Folder already exists")
             exit()
 
-        camera = PybulletCamera(num_camera_poses, camera_look_at)
+        camera = PybulletCamera(num_camera_poses, camera_look_at, camera_multipler) # Initialize camera
+        camera.pose_generation(camera.num_poses, camera_theta, camera_phi, camera_radius, camera_x, camera_y, camera_z
+                              ,camera_theta_var, camera_phi_var, camera_radius_var) # Pose generation
+
         world_dict = {world: pybullet_world.world[world]}
 
         for j in tqdm(range(num_camera_poses), desc = f"World {i}", leave= False):
@@ -73,19 +86,17 @@ def main():
 
             color_img, depth_img, loaded_depth_img = camera.get_pose_img(j)
 
-            print(camera.poses[j])
-
             camera.save_image(color_img, depth_img, cam_path, j)
-            camera.save_pcd(j, color_img, loaded_depth_img, cam_path)
+            camera.save_pcd(color_img, loaded_depth_img, cam_path)
         
         camera_dict = camera.get_camera_dict()
         world_dict["camera"] = camera_dict
 
         dump_world(world_dict, world, world_save_path)
 
-        pybullet_world.disable_real_time_simulation()
+        pybullet_world.disable_real_time_simulation() # disable simulation for collision label generation
 
-        panda = PandaArm(base_pose, num_robot_config, client, seed, seed_num)
+        panda = PandaArm(panda_base_pose, num_robot_config, client, seed, seed_num)
 
         panda.label_generation()
 
@@ -94,6 +105,8 @@ def main():
         panda.remove_panda()
 
         pybullet_world.pybullet_remove_world()
+
+        time.sleep(10)
 
     
 if __name__ == "__main__":
