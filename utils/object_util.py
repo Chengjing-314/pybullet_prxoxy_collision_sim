@@ -82,7 +82,7 @@ class PybulletModelMover():
 
 class PybulletWorldManager():
 
-    def __init__(self, num_worlds, tota_object_dict, object_limits, model_path = '/home/chengjing/gazebo_models/', z_offset = 1):
+    def __init__(self, num_worlds, tota_object_dict, object_limits, model_path, z_offset = 0.68):
         self.world_ = PybulletWorldGen(objects=tota_object_dict, num_worlds=num_worlds)
         self.world = self.world_.world
         self.object_limits = object_limits
@@ -117,7 +117,12 @@ class PybulletWorldManager():
 
         for object in objects:
             xyz, rpy = temp_world_mover.get_model_pose(self.spawned_models[object])
-            self.world[world_name][object]["pybullet_pose"] = {"xyz": xyz, "rpy": rpy}
+            if xyz[2] < self.offset: # make sure all objects are above the table 
+                temp_world_mover.remove_model(self.spawned_models[object])
+                self.spawned_models.pop(object)
+                self.world[world_name].pop(object)
+            else:
+                self.world[world_name][object]["pybullet_pose"] = {"xyz": xyz, "rpy": rpy}
 
             
 
