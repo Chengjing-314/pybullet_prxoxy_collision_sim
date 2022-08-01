@@ -17,16 +17,29 @@ def main():
     # Overall Parameters
     num_camera_poses = 2 # Number of camera poses per world
     num_worlds = 2 # Number of worlds
+    max_objects_per_world = 8 # Maximum number of objects per world
     model_path = "/home/chengjing/Desktop/pybullet-URDF-models/urdf_models/models"
     save_path = "/home/chengjing/Desktop/img_save_test"
 
-
     # Object Parameters
-    object_dict = {"book_1": {}, 
+    object_dict = {
+                "book_1": {}, 
                 "fork": {},
                 "knife": {},
+                "spoon": {},
                 "mug": {},
-                "sugar_box": {}}
+                "sugar_box": {},
+                "lipton_tea":{},
+                "plastic_apple":{},
+                "plastic_banana":{},
+                "potato_chip_1":{},
+                "scissors":{},
+                "poker_1":{},
+                "remote_controller_1": {},
+                "plate": {},
+                "glue_1": {}
+                }
+
     obj_limits = {"x":(0.665, 0.965), "y":(0.2, 0.8), "z":(0, 0.015)} # Object spawning limits
     obj_z_offset = 0.68 # offset of the table
 
@@ -49,7 +62,7 @@ def main():
     # p.loadURDF("franka_panda/panda.urdf", panda_base_pose)
 
     # Initialize world
-    pybullet_world = PybulletWorldManager(num_worlds, object_dict, obj_limits, model_path, obj_z_offset)
+    pybullet_world = PybulletWorldManager(num_worlds, object_dict, obj_limits, model_path, obj_z_offset, max_objects_per_world)
 
     # Get the world list for iteration
     worlds = pybullet_world.get_world_list()

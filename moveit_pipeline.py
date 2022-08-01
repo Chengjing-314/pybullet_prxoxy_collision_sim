@@ -1,6 +1,7 @@
 from utils.moveit_util import *
 from sensor_msgs.msg import PointCloud2
 import threading
+import time
 
 
 
@@ -36,8 +37,9 @@ def main():
             moveit.data_generation()
             cam_path = os.path.join(path, "world_" + str(world), "cam_" + str(cam))
             moveit.dump_data(cam_path)
-            pose_switch_flag = False
+            pose_switch_flag = True
             pc_pub_thread.join()
+            time.sleep(0.5)
 
 
 if __name__ == "__main__":
