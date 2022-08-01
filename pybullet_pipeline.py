@@ -15,8 +15,8 @@ def main():
     p.setAdditionalSearchPath(pd.getDataPath())
 
     # Overall Parameters
-    num_camera_poses = 2 # Number of camera poses per world
-    num_worlds = 2 # Number of worlds
+    num_camera_poses = 10 # Number of camera poses per world
+    num_worlds = 1 # Number of worlds
     max_objects_per_world = 8 # Maximum number of objects per world
     model_path = "/home/chengjing/Desktop/pybullet-URDF-models/urdf_models/models"
     save_path = "/home/chengjing/Desktop/img_save_test"
@@ -40,8 +40,8 @@ def main():
                 "glue_1": {}
                 }
 
-    obj_limits = {"x":(0.665, 0.965), "y":(0.2, 0.8), "z":(0, 0.015)} # Object spawning limits
-    obj_z_offset = 0.68 # offset of the table
+    obj_limits = {"x":(0.665, 0.965), "y":(0.2, 0.8), "z": 0.05} # Object spawning limits
+    obj_z_offset = 0.63 # offset of the table
 
     # Camera Parameters
     camera_look_at = [0.815, 0.5, 0.63] # Camera look at point
@@ -59,7 +59,7 @@ def main():
     seed = False
     seed_num = 0
 
-    # p.loadURDF("franka_panda/panda.urdf", panda_base_pose)
+    # temp_arm = p.loadURDF("franka_panda/panda.urdf", panda_base_pose)
 
     # Initialize world
     pybullet_world = PybulletWorldManager(num_worlds, object_dict, obj_limits, model_path, obj_z_offset, max_objects_per_world)
@@ -119,7 +119,7 @@ def main():
 
         pybullet_world.pybullet_remove_world()
 
-        time.sleep(10)
+        time.sleep(1)
 
     
 if __name__ == "__main__":

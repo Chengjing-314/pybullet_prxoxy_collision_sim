@@ -71,7 +71,7 @@ class PybulletCamera():
         phi  = (np.random.rand() * 2  - 1) * phi_var + phi
         radius = (np.random.rand() * 1 + -1) * radius_var + radius
 
-        print("theta: ", theta, "phi: ", phi, "radius: ", radius)
+        # print("theta: ", theta, "phi: ", phi, "radius: ", radius)
 
         cam_x  = radius  * np.cos(phi) * np.cos(theta) + x
         cam_y = radius  * np.cos(phi) * np.sin(theta) + y 

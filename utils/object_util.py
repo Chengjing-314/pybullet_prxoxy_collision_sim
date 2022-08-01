@@ -68,14 +68,14 @@ class PybulletModelMover():
         rpy = R.from_quat(orn).as_euler('xyz').tolist()
         return pos, rpy
 
-    def object_pose_generation(self, num_objects, z_offset = 0.68, num_pose = 1):
+    def object_pose_generation(self, num_objects, z_offset = 0.63, num_pose = 1):
         if num_pose ==  1:
             poses = np.zeros((num_objects, 6))
         else:
             print("Not implemented yet")
         poses[:,0,None] = np.random.rand(num_objects, num_pose) * (self.x[1] - self.x[0]) + self.x[0]
         poses[:,1,None] = np.random.rand(num_objects, num_pose) * (self.y[1] - self.y[0]) + self.y[0]
-        poses[:,2,None] = np.ones((num_objects, num_pose)) *  z_offset
+        poses[:,2,None] = np.ones((num_objects, num_pose)) *  z_offset + self.z
         poses[:,3,None] = np.random.rand(num_objects, num_pose) * (self.roll[1] - self.roll[0]) + self.roll[0]
         poses[:,4,None] = np.random.rand(num_objects, num_pose) * (self.pitch[1] - self.pitch[0]) + self.pitch[0]
         poses[:,5,None] = np.random.rand(num_objects, num_pose) * (self.yaw[1] - self.yaw[0]) + self.yaw[0]
@@ -85,7 +85,7 @@ class PybulletModelMover():
 
 class PybulletWorldManager():
 
-    def __init__(self, num_worlds, tota_object_dict, object_limits, model_path, z_offset = 0.68, max_objects_per_world = 8):
+    def __init__(self, num_worlds, tota_object_dict, object_limits, model_path, z_offset = 0.63, max_objects_per_world = 8):
         self.world_ = PybulletWorldGen(objects=tota_object_dict, num_worlds=num_worlds, max_objects_per_world=max_objects_per_world)
         self.world = self.world_.world
         self.object_limits = object_limits
@@ -96,7 +96,7 @@ class PybulletWorldManager():
 
         self.world_pose_generation(z_offset=self.offset)
 
-    def world_pose_generation(self, z_offset = 0.68):
+    def world_pose_generation(self, z_offset = 0.63):
         
         for scene in self.world.keys():
            objects = list(self.world[scene].keys())
@@ -120,7 +120,8 @@ class PybulletWorldManager():
 
         for object in objects:
             xyz, rpy = temp_world_mover.get_model_pose(self.spawned_models[object])
-            if xyz[2] < self.offset: # make sure all objects are above the table 
+            if xyz[2] < (self.offset * 0.9): # make sure all objects are above the table 
+                print("removing object: ", object)
                 temp_world_mover.remove_model(self.spawned_models[object])
                 self.spawned_models.pop(object)
                 self.world[world_name].pop(object)
@@ -160,9 +161,8 @@ class PandaArm():
     def __init__(self, base_pose, num_poses, client_id, seed = False, seed_num = 0):
         self.base_pose = base_pose
         self.num_poses = num_poses
-        self.flag = p.URDF_USE_SELF_COLLISION
 
-        self.pandaID = p.loadURDF("franka_panda/panda.urdf", base_pose, useFixedBase=True, flags = self.flag)
+        self.pandaID = p.loadURDF("franka_panda/panda.urdf", base_pose, useFixedBase=True)
         self.constraints = torch.FloatTensor([[-2.8973, 2.8973],
                                              [-1.7628, 1.7628],
                                              [-2.8973, 2.8973],

@@ -4,6 +4,7 @@ from scipy.spatial.transform import Rotation
 import numpy as np
 import open3d as o3d
 import json
+import time
 
 
 IMG_LEN = 1024
@@ -244,9 +245,15 @@ def place_mesh(mesh):
 def set_joints_and_get_collision_status(pandaUid, angles, clientID):
     panda_joint_id = [0,1,2,3,4,5,6]
     for i in range(len(angles)):
-        p.resetJointState(pandaUid,panda_joint_id[i], angles[i])
+        p.resetJointState(pandaUid, panda_joint_id[i], angles[i])
+
     p.performCollisionDetection(clientID)
     c = p.getContactPoints(bodyA = pandaUid, physicsClientId = clientID)
+    # if c:
+    #     print("in collision")
+    #     input("Enter to continue")
+    # else:
+    #     print("not in collision")
     return 1 if c else -1 #FIXME: 
 
 
