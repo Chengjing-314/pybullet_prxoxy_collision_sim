@@ -1,3 +1,4 @@
+from tabnanny import check
 import pybullet as p 
 import numpy as np
 import pybullet_data as pd
@@ -158,7 +159,7 @@ class PybulletWorldManager():
 
 
 class PandaArm():
-    def __init__(self, base_pose, num_poses, client_id, seed = False, seed_num = 0):
+    def __init__(self, base_pose, num_poses, client_id, area_of_interest, seed = False, seed_num = 0):
         self.base_pose = base_pose
         self.num_poses = num_poses
 
@@ -176,11 +177,48 @@ class PandaArm():
         
         self.DOF = 7
 
-        self.cfgs = torch.rand((self.num_poses, self.DOF), dtype=torch.float32)
+        self.cfgs = torch.zeros((self.num_poses, self.DOF), dtype=torch.float32)
         self.labels = torch.zeros(self.num_poses, dtype=torch.float)
-        self.cfgs = self.cfgs * (self.constraints[:, 1]-self.constraints[:, 0]) + self.constraints[:, 0]
         self.client_id = client_id      
-
+        self.aoi = area_of_interest
+        
+    
+    def cfg_generation(self, ratio = 0.5):
+        self.aoi_marker = torch.zeros(self.num_poses, dtype=torch.bool)
+        aoi_total, aoi_count = self.num_poses * ratio, 0
+        rand_total, rand_count = self.num_poses * (1 - ratio), 0
+        while aoi_count < aoi_total:
+            cfg = self.get_cfg()
+            if self.check_aoi(cfg):
+                aoi_count += 1
+                self.cfgs[aoi_count] = cfg
+            
+        while rand_count < rand_total:
+            cfg = self.get_cfg()
+            if not self.check_aoi(cfg):
+                rand_count += 1
+                self.cfgs[rand_count] = cfg
+                
+        self.aoi_marker[:aoi_count] = True
+        self.aoi_marker[rand_count:] = False
+        
+        perm = torch.randperm(self.num_poses)
+        
+        self.cfgs = self.cfgs[perm].view(self.cfgs.size())
+        self.aoi_marker = self.aoi_marker[perm].view(self.aoi_marker.size())
+                    
+    def get_cfg(self):
+        cfg = torch.rand((self.DOF), dtype=torch.float32)
+        cfg = cfg * (self.constraints[:, 1]-self.constraints[:, 0]) + self.constraints[:, 0]
+        return cfg
+                
+    
+    def check_aoi(self, cfg):
+        set_joints(self.pandaID, cfg, self.client_id)
+        x, y ,z = p.getLinkState(self.pandaID, 11)[0]  # Get end effector link position
+        if self.aoi['x'][0] <= x <= self.aoi['x'][1] and self.aoi['y'][0] <= y <= self.aoi['y'][1] and self.aoi['z'][0] <= z <= self.aoi['z'][1]:
+            return True
+        return False
 
 
     def label_generation(self):
@@ -193,8 +231,10 @@ class PandaArm():
     def save_data(self, path):
         cfg_path = os.path.join(path, 'robot_config.pt')
         label_path = os.path.join(path, 'collision_label.pt')
+        marker_path = os.path.join(path, 'aoi_marker.pt')
         torch.save(self.cfgs, cfg_path)
         torch.save(self.labels, label_path)
+        torch.save(self.aoi_marker, marker_path)
 
     def remove_panda(self):
         p.removeBody(self.pandaID)

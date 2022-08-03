@@ -5,8 +5,6 @@ from utils.camera_util import *
 from utils.object_util import * 
 from tqdm import tqdm
 
-
-
 def main():
 
     pi = np.pi
@@ -19,7 +17,7 @@ def main():
     num_worlds = 1 # Number of worlds
     max_objects_per_world = 8 # Maximum number of objects per world
     model_path = "/home/chengjing/Desktop/pybullet-URDF-models/urdf_models/models"
-    save_path = "/home/chengjing/Desktop/img_save_test"
+    save_path = "/home/chengjing/Desktop/save_new_ratio"
 
     # Object Parameters
     object_dict = {
@@ -40,9 +38,11 @@ def main():
                 "glue_1": {}
                 }
 
-    obj_limits = {"x":(0.665, 0.965), "y":(0.2, 0.8), "z": 0.05} # Object spawning limits
+    obj_limits = {"x":(0.665, 0.965), "y":(0.2, 0.8), "z": 0.1} # Object spawning limits
     obj_z_offset = 0.63 # offset of the table
-
+   
+    
+    
     # Camera Parameters
     camera_look_at = [0.815, 0.5, 0.63] # Camera look at point
     camera_phi =  pi *  4 / 9  # Camera phi angle
@@ -54,8 +54,10 @@ def main():
 
 
     # Panda arm parameter
+    area_of_interest = {"x":(0.565, 1.065), "y":(0.1, 0.9), "z": (0.63, 0.67)} # Area of interest for camera
+    ratio = 0.5 # Rough ratio of in AOI and out of AOI
     panda_base_pose = [0.315, 0.5, 0.63] 
-    num_robot_config = 10
+    num_robot_config = 5000
     seed = False
     seed_num = 0
 
@@ -109,8 +111,10 @@ def main():
 
         pybullet_world.disable_real_time_simulation() # disable simulation for collision label generation
 
-        panda = PandaArm(panda_base_pose, num_robot_config, client, seed, seed_num)
+        panda = PandaArm(panda_base_pose, num_robot_config, client, area_of_interest, seed, seed_num)
 
+        panda.cfg_generation(ratio)
+        
         panda.label_generation()
 
         panda.save_data(world_save_path)
