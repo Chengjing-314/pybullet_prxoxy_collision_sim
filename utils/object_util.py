@@ -206,6 +206,49 @@ class PandaArm():
         
         self.cfgs = self.cfgs[perm].view(self.cfgs.size())
         self.aoi_marker = self.aoi_marker[perm].view(self.aoi_marker.size())
+        
+        
+    def cfg_generation_invk(self, ratio = 0.5, range = 0.2, max_iter = 1000, residual = 0.005):
+        self.aoi_marker = torch.zeros(self.num_poses, dtype=torch.bool)
+        aoi_count, aoi_total = 0, int(self.num_poses * ratio)
+        rand_count, rand_total = 0, int(self.num_poses * (1 - ratio))
+        
+        while aoi_count < aoi_total or rand_count < rand_total:
+            xyz = self.get_coordinate(range / 2)
+            count = aoi_count + rand_count
+            cfg = p.calculateInverseKinematics(bodyUniqueId=self.pandaID, endEffectorLinkIndex = 11,
+                                             targetPosition = xyz, maxNumIterations = max_iter, residualThreshold = residual)
+            cfg = cfg[:7]
+            if not self.check_cfg(cfg):
+                continue
+            
+            if self.check_aoi_xyz(xyz) and aoi_count < aoi_total:
+                aoi_count += 1
+                self.aoi_marker[count] = True 
+            elif rand_count < rand_total:
+                rand_count += 1
+                self.aoi_marker[count] = False
+                
+            self.cfgs[count] = torch.FloatTensor(cfg)
+
+        
+    def get_coordinate(self, range):
+        x_low, x_high = self.aoi['x'][0] * (1 - range), self.aoi['x'][1] * (1 + range)
+        y_low, y_high = self.aoi['y'][0] * (1 - range), self.aoi['y'][1] * (1 + range)
+        z_low, z_high = self.aoi['z'][0] * (1 - range), self.aoi['z'][1] * (1 + range)
+        
+        x  = np.random.rand() * (x_high - x_low) + x_low
+        y  = np.random.rand() * (y_high - y_low) + y_low
+        z  = np.random.rand() * (z_high - z_low) + z_low
+        
+        return np.array([x, y, z])
+    
+    def check_cfg(self, cfg):
+        for i in range(self.DOF):
+            if cfg[i] < self.constraints[i][0] or cfg[i] > self.constraints[i][1]:
+                return False
+        return True
+        
                     
     def get_cfg(self):
         cfg = torch.rand((self.DOF), dtype=torch.float32)
@@ -220,6 +263,11 @@ class PandaArm():
             return True
         return False
 
+    def check_aoi_xyz(self, xyz):
+        x, y, z = xyz
+        if self.aoi['x'][0] <= x <= self.aoi['x'][1] and self.aoi['y'][0] <= y <= self.aoi['y'][1] and self.aoi['z'][0] <= z <= self.aoi['z'][1]:
+            return True
+        return False
 
     def label_generation(self):
         for i in range(self.num_poses):

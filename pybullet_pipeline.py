@@ -54,12 +54,14 @@ def main():
 
 
     # Panda arm parameter
-    area_of_interest = {"x":(0.565, 1.065), "y":(0.1, 0.9), "z": (0.63, 0.67)} # Area of interest for camera
+    area_of_interest = {"x":(0.665, 0.965), "y":(0.3, 0.6), "z": (0.63, 0.67)} # Area of interest for camera
     ratio = 0.5 # Rough ratio of in AOI and out of AOI
     panda_base_pose = [0.315, 0.5, 0.63] 
-    num_robot_config = 5000
+    num_robot_config = 10000
     seed = False
     seed_num = 0
+    
+    np.random.seed(2023)
 
     # temp_arm = p.loadURDF("franka_panda/panda.urdf", panda_base_pose)
 
@@ -113,7 +115,8 @@ def main():
 
         panda = PandaArm(panda_base_pose, num_robot_config, client, area_of_interest, seed, seed_num)
 
-        panda.cfg_generation(ratio)
+        # panda.cfg_generation(ratio)
+        panda.cfg_generation_invk(ratio)
         
         panda.label_generation()
 
