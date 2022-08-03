@@ -185,8 +185,8 @@ class PandaArm():
     
     def cfg_generation(self, ratio = 0.5):
         self.aoi_marker = torch.zeros(self.num_poses, dtype=torch.bool)
-        aoi_total, aoi_count = self.num_poses * ratio, 0
-        rand_total, rand_count = self.num_poses * (1 - ratio), 0
+        aoi_total, aoi_count = int(self.num_poses * ratio), 0
+        rand_total, rand_count = int(self.num_poses * (1 - ratio)), 0
         while aoi_count < aoi_total:
             cfg = self.get_cfg()
             if self.check_aoi(cfg):
@@ -199,8 +199,8 @@ class PandaArm():
                 rand_count += 1
                 self.cfgs[rand_count] = cfg
                 
-        self.aoi_marker[:aoi_count] = True
-        self.aoi_marker[rand_count:] = False
+        self.aoi_marker[:aoi_total] = True
+        self.aoi_marker[aoi_total:] = False
         
         perm = torch.randperm(self.num_poses)
         
