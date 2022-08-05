@@ -4,6 +4,7 @@ from moveit_msgs.msg import RobotState, DisplayTrajectory, RobotTrajectory
 from moveit_msgs.srv import GetStateValidityRequest, GetStateValidity
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from std_msgs.msg import Float64MultiArray, Header
+from std_srvs.srv import Empty
 from utils.data_reader_util import *
 import std_msgs.msg
 import rospy 
@@ -53,6 +54,9 @@ class MoveitDataGen(object):
 
             in_collision = not result.valid
             self.labels[i]  = 1 if in_collision else -1 # FIXME: change to 0?
+            
+        print("{} in collision, {} collision free".format(torch.sum(self.labels == 1), torch.sum(self.labels == -1)))
+        return self.labels
     
     def dump_data(self, path):
         torch.save(self.labels, path)
@@ -129,6 +133,11 @@ class MoveitDataGen(object):
 
 
         print(f"set state:\n {joint_pts.positions}")
+        
+    def clear_octomap(self):
+        rospy.wait_for_service('/clear_octomap')
+        clear_octomap = rospy.ServiceProxy('/clear_octomap', Empty)
+        clear_octomap()
 
 
 
@@ -169,11 +178,13 @@ def fake_sensor(world, cam, path): # cam and world are int, not str
 
     # Transform the point cloud to world frame
 
-    tf_buffer = tf2.Buffer()
-    lr = tf2.TransformListener(tf_buffer)
+    # tf_buffer = tf2.Buffer()
+    # lr = tf2.TransformListener(tf_buffer)
 
     # trans = tf_buffer.lookup_transform("world","camera_frame",rospy.Time(0), rospy.Duration(4.0))
 
+    rospy.sleep(0.1) # wait for frame to be published
+    
     header = Header()
     header.stamp = rospy.Time.now()
     # header.frame_id = "camera_frame"

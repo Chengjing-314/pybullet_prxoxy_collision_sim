@@ -1,5 +1,6 @@
 import json
 import numpy as np
+import h5py
 from utils.general_util import * 
 
 
@@ -40,3 +41,14 @@ def depth_image_to_true_depth(depth_image, multipler, near, far):
     depth_image[depth_image == 0] = np.nan
     depth_image = depth_image_range_conversion(depth_image, near * multipler, far, uint16_min, uint16_max)
     return depth_image
+
+def get_color_pcd(path):
+    pc_path = os.path.join(path, "pc.h5")
+    color_path = os.path.join(path, "color.h5")
+    with h5py.File(pc_path, "r") as f:
+        pcd = np.array(f["pointcloud"][:])
+    
+    with h5py.File(color_path, "r") as f:
+        color = np.array(f["color"][:])
+    
+    return color, pcd

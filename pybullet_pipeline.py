@@ -17,7 +17,7 @@ def main():
     num_worlds = 1 # Number of worlds
     max_objects_per_world = 8 # Maximum number of objects per world
     model_path = "/home/chengjing/Desktop/pybullet-URDF-models/urdf_models/models"
-    save_path = "/home/chengjing/Desktop/save_new_ratio"
+    save_path = "/home/chengjing/Desktop/cam_test"
 
     # Object Parameters
     object_dict = {
@@ -45,7 +45,7 @@ def main():
     
     # Camera Parameters
     camera_look_at = [0.815, 0.5, 0.63] # Camera look at point
-    camera_phi =  pi *  4 / 9  # Camera phi angle
+    camera_phi =  pi *  2 / 9  # Camera phi angle
     camera_theta = pi   # Camera theta angle
     camera_radius = 0.85 # Camera radius
     camera_x, camera_y, camera_z = camera_look_at[0], camera_look_at[1], camera_look_at[2]
@@ -104,7 +104,7 @@ def main():
             color_img, depth_img, loaded_depth_img = camera.get_pose_img(j)
 
             camera.save_image(color_img, depth_img, cam_path, j)
-            camera.save_pcd(color_img, loaded_depth_img, cam_path)
+            camera.save_pcd(color_img, loaded_depth_img, cam_path, filter = True)
         
         camera_dict = camera.get_camera_dict()
         world_dict["camera"] = camera_dict

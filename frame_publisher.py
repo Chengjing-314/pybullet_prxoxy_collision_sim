@@ -13,7 +13,8 @@ class FramePublisher():
     def __init__(self):
         self.camera_frame_TF = None
         self.optical_refrence_frame_TF = None
-        self.current_pose = None
+        self.current_pose = [0, 0, 0, 0, 0, 0]
+        self.prev_pose = []
 
         self.br = tf2_ros.TransformBroadcaster()
         self.pub_tf = rospy.Publisher("/tf", tf2_msgs.msg.TFMessage, queue_size=1)
@@ -25,8 +26,8 @@ class FramePublisher():
             if self.current_pose:
                 self.camera_frame_TF = self.cam_frame_builder(self.current_pose)
                 self.pub_tf.publish(self.camera_frame_TF)
-                self.optical_refrence_frame_TF = self.optical_reference_frame_builder()
-                self.pub_tf.publish(self.optical_refrence_frame_TF)
+                # self.optical_refrence_frame_TF = self.optical_reference_frame_builder()
+                # self.pub_tf.publish(self.optical_refrence_frame_TF)
             else:
                 continue
 
@@ -37,7 +38,10 @@ class FramePublisher():
     
 
     def cam_frame_builder(self, pose):
-        print(pose)
+        if pose != self.prev_pose:
+            print("Updating camera frame: " + str(pose))
+            self.prev_pose = pose
+        
         t = geometry_msgs.msg.TransformStamped()
         t.header.frame_id = "world"
         t.header.stamp = rospy.Time.now()

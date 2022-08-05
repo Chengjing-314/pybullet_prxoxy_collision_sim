@@ -143,7 +143,7 @@ class PybulletCamera():
         return list(rpy)
 
 
-    def save_pcd(self, color_img, depth_img, path):
+    def save_pcd(self, color_img, depth_img, path, filter = False, distance = 1.7):
 
         # view_matrix = np.array(self.get_view_matrix(cam_pose)).reshape(4,4).T
 
@@ -162,14 +162,19 @@ class PybulletCamera():
 
         # extrinsic = view_matrix
 
-        cam = get_camera(extrin = np.eye(4), height=self.image_height, width=self.image_width, f = self.focus) 
-
+        cam = get_camera(extrin = np.eye(4), height=self.image_height, width=self.image_width, f = self.focus)
         rgbd = buffer_to_rgbd(color_img, depth_img)
 
         pcd = get_pcd(cam, rgbd)
 
         xyz = np.array(pcd.points)
         color = np.array(pcd.colors)
+        
+        if filter:
+            mask = np.where(xyz[:,2] > distance)[0]
+            xyz = np.delete(xyz, mask, axis = 0)
+            color = np.delete(color, mask, axis = 0)
+            
 
         pc_path = os.path.join(path, "pc.h5")
         color_path = os.path.join(path, "color.h5")
