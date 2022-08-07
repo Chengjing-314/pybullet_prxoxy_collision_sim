@@ -18,12 +18,21 @@ def pc_thread(topic, pc_msg):
 
 
 def main():
+    
+    #General Parameters for World and Camera
+    num_world = 1
+    num_cam = 5
+    
+    #Parameter for PC, filter out points in z axis > distance
+    filter = True
+    distance = 1.4
+    
+    
+    
+    
     global pose_switch_flag 
     rospy.init_node("fake_sensor")
-    path = "/home/chengjing/Desktop/save_new_ratio"
-
-    num_world = 1
-    num_cam = 2
+    path = "/home/chengjing/Desktop/cam_test"
 
     pose_switch_flag = True
     for world in range(num_world):
@@ -31,13 +40,14 @@ def main():
         cfgs = torch.load(cfg_path)
         for cam in range(num_cam):
             pose_switch_flag = False
-            pc = fake_sensor(world, cam, path)
-            time.sleep(0.5)
+            pc = fake_sensor(world, cam, path, filter, distance)
+            time.sleep(0.5) # Give time for frame publisher to connect and publish
             pc_pub_thread = threading.Thread(target=pc_thread, args=("/camera/depth/points", pc))
             pc_pub_thread.start()
-            time.sleep(0.5)
+            time.sleep(0.5) # Give time for pc to publish
             moveit = MoveitDataGen(cfgs)
-            moveit.clear_octomap()
+            moveit.clear_octomap() # clear out octomap noise
+            time.sleep(2) # Wait for octomap to be cleared and pc reload
             moveit.data_generation()
             cam_path = os.path.join(path, "world_" + str(world), "cam_" + str(cam))
             data_path = os.path.join(cam_path, "pc_collision_label.pt")

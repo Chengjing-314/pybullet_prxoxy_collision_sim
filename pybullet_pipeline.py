@@ -45,9 +45,10 @@ def main():
     
     # Camera Parameters
     camera_look_at = [0.815, 0.5, 0.63] # Camera look at point
-    camera_phi =  pi *  2 / 9  # Camera phi angle
+    camera_phi =  pi *  1 / 6  # Camera phi angle
     camera_theta = pi   # Camera theta angle
-    camera_radius = 0.85 # Camera radius
+    camera_radius = 0.85 # Camera radiush
+    camera_theta_offset = 0.25
     camera_x, camera_y, camera_z = camera_look_at[0], camera_look_at[1], camera_look_at[2]
     camera_multipler = 10
     camera_phi_var, camera_theta_var, camera_radius_var = pi / 12, pi / 6, 0.05 # Camera phi theta and radius variance
@@ -92,7 +93,7 @@ def main():
 
         camera = PybulletCamera(num_camera_poses, camera_look_at, camera_multipler) # Initialize camera
         camera.pose_generation(camera.num_poses, camera_theta, camera_phi, camera_radius, camera_x, camera_y, camera_z
-                              ,camera_theta_var, camera_phi_var, camera_radius_var) # Pose generation
+                              ,camera_theta_var, camera_phi_var, camera_radius_var, camera_theta_offset) # Pose generation
 
         world_dict = {world: pybullet_world.world[world]}
 
@@ -104,7 +105,7 @@ def main():
             color_img, depth_img, loaded_depth_img = camera.get_pose_img(j)
 
             camera.save_image(color_img, depth_img, cam_path, j)
-            camera.save_pcd(color_img, loaded_depth_img, cam_path, filter = True)
+            camera.save_pcd(color_img, loaded_depth_img, cam_path)
         
         camera_dict = camera.get_camera_dict()
         world_dict["camera"] = camera_dict

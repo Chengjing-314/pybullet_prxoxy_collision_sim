@@ -64,10 +64,12 @@ class PybulletCamera():
         return self.get_camera_image(view_matrix)
 
 
-    def pose_gen(self, theta , phi, radius, x, y, z, theta_var = np.pi / 6, phi_var = np.pi / 12, radius_var = 0.05):
+    def pose_gen(self, theta , phi, radius, x, y, z, theta_var = np.pi / 6, phi_var = np.pi / 12, radius_var = 0.05, theta_offset = 0.25):
 
         # Parametric coordinate generation
-        theta = (np.random.rand() * 2  - 1) * theta_var + theta 
+        temp = theta
+        theta = (np.random.rand() * 2  - 1) * theta_var + theta
+        theta += theta_offset if theta >= temp else -theta_offset
         phi  = (np.random.rand() * 2  - 1) * phi_var + phi
         radius = (np.random.rand() * 1 + -1) * radius_var + radius
 
@@ -88,7 +90,7 @@ class PybulletCamera():
     
 
     def pose_generation(self, num_poses,theta = np.pi * (1 / 3), phi = np.pi * (1 / 3) , radius = 1.65, x = 0.75, y = 0.4, z= 1.07, 
-    theta_var = np.pi / 6, phi_var = np.pi / 12, radius_var = 0.05):
+    theta_var = np.pi / 6, phi_var = np.pi / 12, radius_var = 0.05, theta_offset = 0.25):
 
         poses = np.zeros((num_poses, 6))
 
@@ -143,7 +145,7 @@ class PybulletCamera():
         return list(rpy)
 
 
-    def save_pcd(self, color_img, depth_img, path, filter = False, distance = 1.7):
+    def save_pcd(self, color_img, depth_img, path):
 
         # view_matrix = np.array(self.get_view_matrix(cam_pose)).reshape(4,4).T
 
@@ -170,12 +172,7 @@ class PybulletCamera():
         xyz = np.array(pcd.points)
         color = np.array(pcd.colors)
         
-        if filter:
-            mask = np.where(xyz[:,2] > distance)[0]
-            xyz = np.delete(xyz, mask, axis = 0)
-            color = np.delete(color, mask, axis = 0)
-            
-
+        
         pc_path = os.path.join(path, "pc.h5")
         color_path = os.path.join(path, "color.h5")
 

@@ -144,9 +144,7 @@ class MoveitDataGen(object):
 
 
 
-
-
-def fake_sensor(world, cam, path): # cam and world are int, not str
+def fake_sensor(world, cam, path, filter = False, distance = 1.7): # cam and world are int, not str
 
     cam_name= "cam_" + str(cam)
     world_name = "world_" + str(world)
@@ -195,6 +193,11 @@ def fake_sensor(world, cam, path): # cam and world are int, not str
 
     with h5py.File(pc_path) as f:
         xyz = f["pointcloud"][:]
+        
+    if filter:
+        mask = np.where(xyz[:,2] > distance)[0]
+        xyz = np.delete(xyz, mask, axis = 0)
+                
 
     pcd_msg = create_cloud_xyz32(header, xyz)
 
