@@ -20,14 +20,12 @@ def pc_thread(topic, pc_msg):
 def main():
     
     #General Parameters for World and Camera
-    num_world = 1
-    num_cam = 5
+    num_world = 80
+    num_cam = 10
     
     #Parameter for PC, filter out points in z axis > distance
     filter = True
     distance = 1.4
-    
-    
     
     
     global pose_switch_flag 
@@ -38,6 +36,7 @@ def main():
     for world in range(num_world):
         cfg_path = os.path.join(path, "world_" + str(world), "robot_config.pt")
         cfgs = torch.load(cfg_path)
+        print("world: ", world)
         for cam in range(num_cam):
             pose_switch_flag = False
             pc = fake_sensor(world, cam, path, filter, distance)
@@ -51,7 +50,7 @@ def main():
             moveit.data_generation()
             cam_path = os.path.join(path, "world_" + str(world), "cam_" + str(cam))
             data_path = os.path.join(cam_path, "pc_collision_label.pt")
-            # moveit.dump_data(data_path)
+            moveit.dump_data(data_path)
             pose_switch_flag = True
             pc_pub_thread.join()
             moveit.clear_octomap()

@@ -14,8 +14,9 @@ def main():
 
     # Overall Parameters
     num_camera_poses = 10 # Number of camera poses per world
-    num_worlds = 1 # Number of worlds
-    max_objects_per_world = 8 # Maximum number of objects per world
+    num_worlds = 80 # Number of worlds
+    min_obj = 8 # Minimum number of objects per world
+    max_obj = 15 # Maximum number of objects per world
     model_path = "/home/chengjing/Desktop/pybullet-URDF-models/urdf_models/models"
     save_path = "/home/chengjing/Desktop/cam_test"
 
@@ -30,17 +31,22 @@ def main():
                 "lipton_tea":{},
                 "plastic_apple":{},
                 "plastic_banana":{},
+                "plastic_orange":{},
                 "potato_chip_1":{},
                 "scissors":{},
                 "poker_1":{},
                 "remote_controller_1": {},
-                "plate": {},
-                "glue_1": {}
+                "glue_1": {},
+                "red_marker": {},
+                "soap": {},
+                "small_clamp": {},
+                "flat_screwdriver": {},
+                "cracker_box": {},
                 }
 
     obj_limits = {"x":(0.665, 0.965), "y":(0.2, 0.8), "z": 0.1} # Object spawning limits
     obj_z_offset = 0.63 # offset of the table
-   
+
     
     
     # Camera Parameters
@@ -50,7 +56,7 @@ def main():
     camera_radius = 0.85 # Camera radiush
     camera_theta_offset = 0.25
     camera_x, camera_y, camera_z = camera_look_at[0], camera_look_at[1], camera_look_at[2]
-    camera_multipler = 10
+    camera_multipler = 10 # For depth image conversion, set the lower bound of the conversion
     camera_phi_var, camera_theta_var, camera_radius_var = pi / 12, pi / 6, 0.05 # Camera phi theta and radius variance
 
 
@@ -67,7 +73,7 @@ def main():
     # temp_arm = p.loadURDF("franka_panda/panda.urdf", panda_base_pose)
 
     # Initialize world
-    pybullet_world = PybulletWorldManager(num_worlds, object_dict, obj_limits, model_path, obj_z_offset, max_objects_per_world)
+    pybullet_world = PybulletWorldManager(num_worlds, object_dict, obj_limits, model_path, obj_z_offset, min_obj, max_obj)
 
     # Get the world list for iteration
     worlds = pybullet_world.get_world_list()

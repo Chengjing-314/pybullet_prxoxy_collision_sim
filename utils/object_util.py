@@ -12,21 +12,22 @@ import torch
 # NOTE: Pybullet default use quaternion for orientation, since we are using moveit for octomap collision, we collect data with euler angles.
 
 class PybulletWorldGen():
-    def __init__(self, objects, num_worlds, max_objects_per_world = 8):
+    def __init__(self, objects, num_worlds, min_obj = 8, max_obj = 10):
         self.object_dict = objects
         objects = list(objects.keys())
         self.objects = np.array(objects) if type(objects) != np.ndarray else objects
         self.total_objects = len(self.objects)
         self.world = {}
         self.rng = default_rng()
-        self.max_obj = max_objects_per_world
+        self.min_obj = min_obj
+        self.max_obj = max_obj
 
         self.world_gen(num_worlds)
 
     def object_random_choice(self):
         if self.total_objects <= 2:
             exit("Too Few Objects!")
-        num_object = np.random.randint(2, self.max_obj+1)
+        num_object = np.random.randint(self.min_obj, self.max_obj+1)
         choice = np.sort(self.rng.choice(range(self.total_objects), num_object, replace=False))
         return self.objects[choice]
     
@@ -86,8 +87,8 @@ class PybulletModelMover():
 
 class PybulletWorldManager():
 
-    def __init__(self, num_worlds, tota_object_dict, object_limits, model_path, z_offset = 0.63, max_objects_per_world = 8):
-        self.world_ = PybulletWorldGen(objects=tota_object_dict, num_worlds=num_worlds, max_objects_per_world=max_objects_per_world)
+    def __init__(self, num_worlds, tota_object_dict, object_limits, model_path, z_offset = 0.63, min_obj = 8, max_obj = 15):
+        self.world_ = PybulletWorldGen(objects=tota_object_dict, num_worlds=num_worlds, min_obj=min_obj, max_obj=max_obj)
         self.world = self.world_.world
         self.object_limits = object_limits
         self.model_path = model_path
