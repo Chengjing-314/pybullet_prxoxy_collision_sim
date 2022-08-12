@@ -1,7 +1,14 @@
 import json
 import numpy as np
 import h5py
-from utils.general_util import * 
+import os
+
+
+def depth_image_range_conversion(depth_image, new_min, new_max, old_min = 0, old_max = 255):
+    depth_image = np.array(depth_image, dtype=np.float32)
+    depth_image = (depth_image - old_min) * (new_max - new_min) / (old_max - old_min) + new_min
+    return depth_image
+
 
 
 def get_world_dict(path):

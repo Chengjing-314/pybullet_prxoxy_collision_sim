@@ -5,12 +5,16 @@ from utils.camera_util import *
 from utils.object_util import * 
 from tqdm import tqdm
 
+
+
 def main():
 
     pi = np.pi
 
     client = p.connect(p.GUI)
     p.setAdditionalSearchPath(pd.getDataPath())
+    
+    p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)
 
     # Overall Parameters
     num_camera_poses = 10 # Number of camera poses per world
@@ -53,12 +57,12 @@ def main():
     camera_look_at = [0.815, 0.5, 0.63] # Camera look at point
     camera_phi =  pi *  1 / 6  # Camera phi angle
     camera_theta = pi   # Camera theta angle
-    camera_radius = 0.85 # Camera radiush
+    camera_radius = 0.9 # Camera radius
     camera_theta_offset = 0.25
     camera_x, camera_y, camera_z = camera_look_at[0], camera_look_at[1], camera_look_at[2]
-    camera_multipler = 10 # For depth image conversion, set the lower bound of the conversion
-    camera_phi_var, camera_theta_var, camera_radius_var = pi / 12, pi / 6, 0.05 # Camera phi theta and radius variance
-
+    camera_multipler = 5 # For depth image conversion, set the lower bound of the conversion
+    camera_phi_var, camera_theta_var, camera_radius_var = pi / 18, pi / 6, 0.05 # Camera phi theta and radius variance
+    # camera fov = 60, camera near 0.05, camera far 5. You can add them here and change initialization. 
 
     # Panda arm parameter
     area_of_interest = {"x":(0.665, 0.965), "y":(0.3, 0.6), "z": (0.63, 0.67)} # Area of interest for camera
@@ -83,6 +87,12 @@ def main():
     pybullet_world.load_default_world()
 
     for i, world in enumerate(tqdm(worlds, desc = "Total World")):
+        
+        if client == None:
+            client = p.connect(p.GUI)
+            pybullet_world.set_world_gravity()
+            pybullet_world.load_default_world()
+        
         # Enable real time sim for object to drop
         pybullet_world.enable_real_time_simulation()
 
@@ -134,6 +144,10 @@ def main():
         pybullet_world.pybullet_remove_world()
 
         time.sleep(1)
+        
+        p.disconnect()
+        
+        client = None
 
     
 if __name__ == "__main__":

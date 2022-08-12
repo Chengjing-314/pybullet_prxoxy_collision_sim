@@ -92,7 +92,7 @@ def get_projection_matrix(fov=FOV, aspect = 1.0, near = NEAR, far = FAR):
                                          farVal=far)
 
 
-def get_image(viewMatrix, projectionMatrix, width = IMG_LEN, height = IMG_LEN):
+def get_image(viewMatrix, projectionMatrix, width = IMG_LEN, height = IMG_LEN, shadow = True):
     """
     Get the image from the pybullet synthetic camera. 
     Args:
@@ -108,7 +108,9 @@ def get_image(viewMatrix, projectionMatrix, width = IMG_LEN, height = IMG_LEN):
                                                                     width=width, 
                                                                   height=height,
                                                           viewMatrix=viewMatrix,
-                                              projectionMatrix=projectionMatrix)
+                                              projectionMatrix=projectionMatrix,
+                                              renderer = p.ER_BULLET_HARDWARE_OPENGL,
+                                              shadow = shadow)
     
     RGB_img = RGB_img[:,:,:3] # Dropped Alha Channel
     # Depth_img = Depth_img[:,:,None] # Add thrid axis

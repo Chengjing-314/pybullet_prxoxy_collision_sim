@@ -29,6 +29,7 @@ class PybulletCamera():
     def get_camera_image(self, view_matrix):
         _, _ , rgbImg, depthImg, _ = get_image(view_matrix, self.projection_matrx, width = self.image_width, height = self.image_height)
         depthImg = true_z_from_depth_buffer(depthImg, far = self.far, near = self.near)
+        print(np.max(depthImg))
         # depthImg = self.process_depth_image(depthImg) 
         depthImg = self.process_depth_image_range_conversion(depthImg)
         # The difference is between original and saved depth image is less than 5*10^-9
@@ -37,7 +38,7 @@ class PybulletCamera():
 
 
     def process_depth_image(self, depth_img):
-        mask = (depth_img == np.nan)
+        mask = (depth_img > (self.far - 0.01))
         depth_img = depth_img * 10000 
         depth_img[mask] = 0
         depth_img = depth_img.astype(np.uint16)
@@ -45,7 +46,7 @@ class PybulletCamera():
     
     def process_depth_image_range_conversion(self, depth_img):
         uint16_min, uint16_max  = 0, 2**16 - 1
-        mask = (depth_img == np.nan)
+        mask = (depth_img > (self.far - 0.01))
         depth_img = depth_image_range_conversion(depth_img, uint16_min, uint16_max, self.near * self.multipler, self.far).astype(np.uint16)
         depth_img[mask] = 0
         return depth_img

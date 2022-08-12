@@ -1,9 +1,9 @@
 import os
 import torch
 
-path =  "/home/chengjing/Desktop/save_new_ratio"
-worlds = 1
-cams = 5
+path =  "/home/chengjing/Desktop/data_gen_last"
+worlds = 80
+cams = 10
 
 
 tacc, tprc, trecall, TPR, TNR = 0, 0, 0, 0, 0
@@ -23,8 +23,8 @@ for world in range(worlds):
             tacc += acc
             tprc += prec
             trecall += recall
-            TPR += tpr
-            TNR += tnr
+            TPR += tpr if tpr > 0 else 0
+            TNR += tnr if tnr > 0 else 0
             # print("label acc: {}".format(acc))
             # print("label precision: {}".format(prec))
             # print("label recall: {}".format(recall))
