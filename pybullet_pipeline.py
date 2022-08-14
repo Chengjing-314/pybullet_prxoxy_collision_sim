@@ -17,8 +17,8 @@ def main():
     p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)
 
     # Overall Parameters
-    num_camera_poses = 10 # Number of camera poses per world
-    num_worlds = 80 # Number of worlds
+    num_camera_poses = 10# Number of camera poses per world
+    num_worlds = 1 # Number of worlds
     min_obj = 8 # Minimum number of objects per world
     max_obj = 15 # Maximum number of objects per world
     model_path = "/home/chengjing/Desktop/pybullet-URDF-models/urdf_models/models"
@@ -62,6 +62,8 @@ def main():
     camera_x, camera_y, camera_z = camera_look_at[0], camera_look_at[1], camera_look_at[2]
     camera_multipler = 5 # For depth image conversion, set the lower bound of the conversion
     camera_phi_var, camera_theta_var, camera_radius_var = pi / 18, pi / 6, 0.05 # Camera phi theta and radius variance
+    camera_near = 0.05 # Camera near plane
+    camera_far = 1000 # Camera far plane
     # camera fov = 60, camera near 0.05, camera far 5. You can add them here and change initialization. 
 
     # Panda arm parameter
@@ -107,7 +109,7 @@ def main():
             print("Folder already exists")
             exit()
 
-        camera = PybulletCamera(num_camera_poses, camera_look_at, camera_multipler) # Initialize camera
+        camera = PybulletCamera(num_camera_poses, camera_look_at, camera_multipler, near = camera_near, far = camera_far) # Initialize camera
         camera.pose_generation(camera.num_poses, camera_theta, camera_phi, camera_radius, camera_x, camera_y, camera_z
                               ,camera_theta_var, camera_phi_var, camera_radius_var, camera_theta_offset) # Pose generation
 
@@ -130,16 +132,16 @@ def main():
 
         pybullet_world.disable_real_time_simulation() # disable simulation for collision label generation
 
-        panda = PandaArm(panda_base_pose, num_robot_config, client, area_of_interest, seed, seed_num)
+        # panda = PandaArm(panda_base_pose, num_robot_config, client, area_of_interest, seed, seed_num)
 
-        # panda.cfg_generation(ratio)
-        panda.cfg_generation_invk(ratio)
+        # # panda.cfg_generation(ratio)
+        # panda.cfg_generation_invk(ratio)
         
-        panda.label_generation()
+        # panda.label_generation()
 
-        panda.save_data(world_save_path)
+        # panda.save_data(world_save_path)
 
-        panda.remove_panda()
+        # panda.remove_panda()
 
         pybullet_world.pybullet_remove_world()
 

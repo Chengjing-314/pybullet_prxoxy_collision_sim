@@ -24,16 +24,31 @@ class PybulletCamera():
     def get_view_matrix(self, i):
         view_matrix = get_view_matrix(self.poses[i,:3], self.look_at, camera_up_vec=[0, 0, 1])
         return  view_matrix
+    
+    def depth_image_error(self, depth_img_gt, depth_img_load, filter = 5):
+        gt = depth_img_gt.copy()
+        gt = gt[gt < filter]
+        load = depth_img_load.copy()
+        load = load[load < filter]
+        
+        return np.mean(np.abs(gt - load))
 
 
     def get_camera_image(self, view_matrix):
         _, _ , rgbImg, depthImg, _ = get_image(view_matrix, self.projection_matrx, width = self.image_width, height = self.image_height)
         depthImg = true_z_from_depth_buffer(depthImg, far = self.far, near = self.near)
-        print(np.max(depthImg))
+        dp = depthImg.copy()
+        # print(np.max(depthImg))
         # depthImg = self.process_depth_image(depthImg) 
-        depthImg = self.process_depth_image_range_conversion(depthImg)
-        # The difference is between original and saved depth image is less than 5*10^-9
-        loaded_depth_img = self.depth_image_from_load(depthImg) 
+        # depthImg = self.process_depth_image_range_conversion(depthImg)
+        # # The difference is between original and saved depth image is less than 5*10^-9
+        # loaded_depth_img = self.depth_image_from_load(depthImg) 
+        depthImg = self.process_depth_image_inverse(depthImg)
+        loaded_depth_img = self.depth_image_from_load_inverse(depthImg)
+        ld = loaded_depth_img.copy()
+        # print('')
+        # print("mean diff: ", self.depth_image_error(dp, ld))
+        # print('')
         return rgbImg, depthImg, loaded_depth_img
 
 
@@ -59,6 +74,27 @@ class PybulletCamera():
         # return  depth_img / 10000
         depth_img = depth_image_range_conversion(depth_img, self.near * self.multipler, self.far, uint16_min, uint16_max)
         return depth_img
+
+    def process_depth_image_inverse(self,depth_img):
+        mask = (depth_img >= (self.far - 0.01))
+        depth_img_inverse = 1 / depth_img
+        new_max = 1 / (self.near * self.multipler)
+        new_min = 1 / self.far
+        uint16_min, uint16_max  = 0, 2**16 - 1
+        converted_depth_img = depth_image_range_conversion(depth_img_inverse, uint16_min, uint16_max, new_min, new_max).astype(np.uint16)
+        converted_depth_img[mask] = 0
+        return converted_depth_img
+    
+    
+    def depth_image_from_load_inverse(self, depth_img):
+        # Imitate behavior of reading and converting depth image from file
+        uint16_min, uint16_max  = 0, 2**16 - 1
+        depth_img = depth_img.astype(np.float32)
+        depth_img[depth_img == 0] = np.nan       
+        new_max = 1 / (self.near * self.multipler)
+        new_min = 1 / self.far
+        depth_img = depth_image_range_conversion(depth_img, new_min, new_max, uint16_min, uint16_max).astype(np.float32)
+        return 1 / depth_img
 
     def get_pose_img(self, i):
         view_matrix = self.get_view_matrix(i)
@@ -97,7 +133,7 @@ class PybulletCamera():
 
         for i in range(num_poses):
             poses[i,:] = self.pose_gen(theta = theta, phi = phi, radius = radius,  x = x, y = y, z = z, 
-                                        theta_var=theta_var, phi_var=phi_var, radius_var=radius_var)
+                                        theta_var=theta_var, phi_var=phi_var, radius_var=radius_var, theta_offset=theta_offset)
         self.poses = poses
         
         return poses
