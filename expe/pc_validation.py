@@ -1,8 +1,8 @@
 import os
 import torch
 
-path =  "/home/chengjing/Desktop/data_gen_last"
-worlds = 80
+path =  "/home/chengjing/Desktop/cam_test"
+worlds = 10
 cams = 10
 
 

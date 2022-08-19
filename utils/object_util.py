@@ -8,6 +8,8 @@ from utils.general_util import *
 import os
 import time
 import torch
+import warnings
+warnings.filterwarnings("ignore", '.*Gimbal lock detected*.') # ignore gimbal lock warning
 
 # NOTE: Pybullet default use quaternion for orientation, since we are using moveit for octomap collision, we collect data with euler angles.
 
@@ -160,7 +162,7 @@ class PybulletWorldManager():
 
 
 class PandaArm():
-    def __init__(self, base_pose, num_poses, client_id, area_of_interest, seed = False, seed_num = 0):
+    def __init__(self, base_pose, num_poses, client_id, area_of_interest, seed = False, seed_num = 0, invk_threshold = 0.005):
         self.base_pose = base_pose
         self.num_poses = num_poses
 
@@ -172,6 +174,12 @@ class PandaArm():
                                              [-2.8973, 2.8973],
                                              [-0.0175, 3.7525],
                                              [-2.8973, 2.8973]])
+        self.lower_limits = [-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973]
+        self.upper_limits = [2.8973, 1.7628, 2.8973, 0.0698, 2.8973, 3.7525, 2.8973]
+        self.robot_range =[self.upper_limits[i] - self.lower_limits[i] for i in range(len(self.lower_limits))]
+        self.rest_pose = [0.0, -0.785398163, 0.0, -2.35619449, 0.0, 1.57079632679, 0.785398163397]
+        self.threshold = invk_threshold
+    
 
         if seed:
             torch.manual_seed(seed_num)
@@ -179,11 +187,19 @@ class PandaArm():
         self.DOF = 7
 
         self.cfgs = torch.zeros((self.num_poses, self.DOF), dtype=torch.float32)
-        self.labels = torch.zeros(self.num_poses, dtype=torch.float)
+        self.labels = torch.zeros(self.num_poses, dtype=torch.float32)
         self.client_id = client_id      
         self.aoi = area_of_interest
         
-    
+    def load_cfgs_aoi(self, path_to_cfgs):
+        self.cfgs = torch.load(os.path.join(path_to_cfgs, "robot_config.pt"))
+        self.aoi_marker = torch.load(os.path.join(path_to_cfgs, "aoi_marker.pt"))
+        if self.num_poses != self.cfgs.size(dim = 0):
+            print("number of poses in cfgs does not match num_poses entered, overwriting num_poses")
+            self.num_poses = self.cfgs.size(dim = 0)
+            self.labels = torch.zeros(self.num_poses, dtype=torch.float32)
+            
+            
     def cfg_generation(self, ratio = 0.5):
         self.aoi_marker = torch.zeros(self.num_poses, dtype=torch.bool)
         aoi_total, aoi_count = int(self.num_poses * ratio), 0
@@ -209,29 +225,157 @@ class PandaArm():
         self.aoi_marker = self.aoi_marker[perm].view(self.aoi_marker.size())
         
         
-    def cfg_generation_invk(self, ratio = 0.5, range = 0.2, max_iter = 1000, residual = 0.005):
+    def cfg_generation_invk_null_space(self, ratio = 0.5, extend_range = 0.2, max_iter = 100, residual = 0.005, reinit_iter = 5):
         self.aoi_marker = torch.zeros(self.num_poses, dtype=torch.bool)
         aoi_count, aoi_total = 0, int(self.num_poses * ratio)
         rand_count, rand_total = 0, int(self.num_poses * (1 - ratio))
         
         while aoi_count < aoi_total or rand_count < rand_total:
-            xyz = self.get_coordinate(range / 2)
+            xyz = self.get_coordinate(extend_range / 2)
             count = aoi_count + rand_count
+            # print("aoi_count", aoi_count, "rand_count", rand_count)
             cfg = p.calculateInverseKinematics(bodyUniqueId=self.pandaID, endEffectorLinkIndex = 11,
-                                             targetPosition = xyz, maxNumIterations = max_iter, residualThreshold = residual)
+                                             targetPosition = xyz, maxNumIterations = max_iter, residualThreshold = residual,
+                                             lowerLimits = self.lower_limits, upperLimits = self.upper_limits,
+                                             jointRanges = self.robot_range, restPoses = self.rest_pose)
             cfg = cfg[:7]
+            
+            solution_flag = False
+            
+            if not self.check_solution_distance(cfg, xyz, self.threshold):
+                for i in range(reinit_iter):
+                    if i == reinit_iter - 1:
+                        self.set_pose(self.rest_pose)
+                    else:
+                        self.set_pose(self.get_cfg())
+                    cfg = p.calculateInverseKinematics(bodyUniqueId=self.pandaID, endEffectorLinkIndex = 11,
+                                             targetPosition = xyz, maxNumIterations = max_iter, residualThreshold = residual,
+                                             lowerLimits = self.lower_limits, upperLimits = self.upper_limits,
+                                             jointRanges = self.robot_range, restPoses = self.rest_pose)
+                    cfg = cfg[:7]
+                    if self.check_solution_distance(cfg, xyz, self.threshold):
+                        solution_flag = True    
+                        break
+            else:
+                solution_flag = True
+            
+            if not solution_flag:
+                continue # reinit_iter attempt failed, skip this pose
+            
+            
             if not self.check_cfg(cfg):
                 continue
+        
+
+            in_aoi = self.check_aoi_xyz(xyz)
             
-            if self.check_aoi_xyz(xyz) and aoi_count < aoi_total:
+            if in_aoi and aoi_count < aoi_total:
                 aoi_count += 1
                 self.aoi_marker[count] = True 
-            elif rand_count < rand_total:
+            elif not in_aoi and rand_count < rand_total:
                 rand_count += 1
                 self.aoi_marker[count] = False
                 
             self.cfgs[count] = torch.FloatTensor(cfg)
-
+            
+    def cfg_generation_invk_null_space_global(self, ratio = 0.5, max_iter = 100, residual = 0.005, reinit_iter = 5):
+        self.aoi_marker = torch.zeros(self.num_poses, dtype=torch.bool)
+        aoi_count, aoi_total = 0, int(self.num_poses * ratio)
+        rand_count, rand_total = 0, int(self.num_poses * (1 - ratio))
+        
+        while aoi_count < aoi_total or rand_count < rand_total:
+            
+            count = aoi_count + rand_count
+            
+            aoi_flag = True if torch.randn(1).item() < ratio else False
+            
+            if aoi_flag and aoi_count >= aoi_total:
+                aoi_flag = False
+            elif not aoi_flag and rand_count >= rand_total:
+                aoi_flag = True
+                
+            if aoi_flag:
+            
+                xyz = self.get_coordinate(0)
+                
+                # print("aoi_count", aoi_count, "rand_count", rand_count)
+                cfg = p.calculateInverseKinematics(bodyUniqueId=self.pandaID, endEffectorLinkIndex = 11,
+                                                targetPosition = xyz, maxNumIterations = max_iter, residualThreshold = residual,
+                                                lowerLimits = self.lower_limits, upperLimits = self.upper_limits,
+                                                jointRanges = self.robot_range, restPoses = self.rest_pose)
+                cfg = cfg[:7]
+                
+                solution_flag = False
+                
+                if not self.check_solution_distance(cfg, xyz, self.threshold):
+                    for i in range(reinit_iter):
+                        if i == reinit_iter - 1:
+                            self.set_pose(self.rest_pose)
+                        else:
+                            self.set_pose(self.get_cfg())
+                        cfg = p.calculateInverseKinematics(bodyUniqueId=self.pandaID, endEffectorLinkIndex = 11,
+                                                targetPosition = xyz, maxNumIterations = max_iter, residualThreshold = residual,
+                                                lowerLimits = self.lower_limits, upperLimits = self.upper_limits,
+                                                jointRanges = self.robot_range, restPoses = self.rest_pose)
+                        cfg = cfg[:7]
+                        if self.check_solution_distance(cfg, xyz, self.threshold):
+                            solution_flag = True    
+                            break
+                else:
+                    solution_flag = True
+                
+                if not solution_flag:
+                    continue # reinit_iter attempt failed, skip this pose
+                
+                
+                if not self.check_cfg(cfg):
+                    continue
+                
+                aoi_count += 1
+                self.aoi_marker[count] = True
+            
+            else:
+                rand_count += 1
+                cfg = self.get_cfg()
+                if self.check_cfg_aoi(cfg):
+                    self.aoi_marker[count] = True
+                else:
+                    self.aoi_marker[count] = False
+            
+            self.cfgs[count] = torch.FloatTensor(cfg)
+            
+        
+            
+    def cfg_generation_invk(self, ratio = 0.5, extend_range = 0.2, max_iter = 100, residual = 0.005):
+        # DO NOT USE THIS FUNCTION FOR NOW
+        self.aoi_marker = torch.zeros(self.num_poses, dtype=torch.bool)
+        aoi_count, aoi_total = 0, int(self.num_poses * ratio)
+        rand_count, rand_total = 0, int(self.num_poses * (1 - ratio))
+        
+        while aoi_count < aoi_total or rand_count < rand_total:
+            xyz = self.get_coordinate(extend_range / 2)
+            count = aoi_count + rand_count
+            print("aoi_count", aoi_count, "rand_count", rand_count)
+            cfg = p.calculateInverseKinematics(bodyUniqueId=self.pandaID, endEffectorLinkIndex = 11,
+                                             targetPosition = xyz, maxNumIterations = max_iter, residualThreshold = residual)
+            cfg = cfg[:7]
+            
+            self.set_pose(cfg)
+            
+            if not self.check_cfg(cfg):
+                print("not in range")
+                continue
+            
+            in_aoi = self.check_aoi_xyz(xyz)
+            
+            if in_aoi and aoi_count < aoi_total:
+                aoi_count += 1
+                self.aoi_marker[count] = True 
+            elif not in_aoi and rand_count < rand_total:
+                rand_count += 1
+                self.aoi_marker[count] = False
+                
+            self.cfgs[count] = torch.FloatTensor(cfg)
         
     def get_coordinate(self, range):
         x_low, x_high = self.aoi['x'][0] * (1 - range), self.aoi['x'][1] * (1 + range)
@@ -277,6 +421,25 @@ class PandaArm():
         print(f'{torch.sum(self.labels==1)} collisons, {torch.sum(self.labels==-1)} free')
         
     
+    def check_solution_distance(self, cfg, xyz, threshold = 0.005):
+        set_joints(self.pandaID, cfg, self.client_id)
+        x, y, z = p.getLinkState(self.pandaID, 11)[0]  # Get end effector link position
+        goal_x, goal_y, goal_z = xyz
+        if np.sqrt((goal_x - x)**2 + (goal_y - y)**2 + (goal_z - z)**2) > threshold:
+            return False
+        return True
+
+    def check_cfg_aoi(self, cfg):
+        for i in range(self.DOF):
+            p.resetJointState(self.pandaID, i, cfg[i])
+        
+        end_factor_xyz = p.getLinkState(self.pandaID, 11)[0]  # Get end effector link position
+        return self.check_aoi_xyz(end_factor_xyz)
+        
+    def set_pose(self, cfg):
+        for i in range(self.DOF):
+            p.resetJointState(self.pandaID, i, cfg[i])
+        
     def save_data(self, path):
         cfg_path = os.path.join(path, 'robot_config.pt')
         label_path = os.path.join(path, 'collision_label.pt')
@@ -284,6 +447,8 @@ class PandaArm():
         torch.save(self.cfgs, cfg_path)
         torch.save(self.labels, label_path)
         torch.save(self.aoi_marker, marker_path)
+        print("\naoi_count", torch.sum(self.aoi_marker))
+        print("cfgs_verify_sum", torch.sum(self.cfgs))
 
     def remove_panda(self):
         p.removeBody(self.pandaID)

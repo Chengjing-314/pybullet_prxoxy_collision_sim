@@ -19,9 +19,9 @@ def get_world_dict(path):
 
 def get_camera_pose(world_dict, i):
     camera_dict = world_dict["camera"]
-    xyz, rpy = camera_dict["pose"][i]["xyz"], camera_dict["pose"][i]["rpy"]
+    xyz, quat = camera_dict["pose"][i]["xyz"], camera_dict["pose"][i]["quat"]
 
-    return xyz, rpy
+    return xyz, quat
 
 def get_camera_intrinsic(world_dict):
     camera_dict = world_dict["camera"]

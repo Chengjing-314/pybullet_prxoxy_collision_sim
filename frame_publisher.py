@@ -13,21 +13,23 @@ class FramePublisher():
     def __init__(self):
         self.camera_frame_TF = None
         self.optical_refrence_frame_TF = None
-        self.current_pose = [0, 0, 0, 0, 0, 0]
+        self.current_pose = [0, 0, 0, 0, 0, 0, 1]
         self.prev_pose = []
 
         self.br = tf2_ros.TransformBroadcaster()
         self.pub_tf = rospy.Publisher("/tf", tf2_msgs.msg.TFMessage, queue_size=1)
 
+        rate = rospy.Rate(10)
 
         while not rospy.is_shutdown():
             self.pos_update_sub = rospy.Subscriber("/pose_update", Float64MultiArray, self.pos_update_callback)
-            rospy.sleep(0.2)
+            
             if self.current_pose:
                 self.camera_frame_TF = self.cam_frame_builder(self.current_pose)
                 self.pub_tf.publish(self.camera_frame_TF)
                 # self.optical_refrence_frame_TF = self.optical_reference_frame_builder()
                 # self.pub_tf.publish(self.optical_refrence_frame_TF)
+                rate.sleep()
             else:
                 continue
 
@@ -54,7 +56,7 @@ class FramePublisher():
 
 
         r = pose[3:]
-        r = R.from_euler('xyz', r).as_quat()
+        # r = R.from_euler('xyz', r).as_quat()
 
         t.transform.rotation.x = r[0]
         t.transform.rotation.y = r[1]

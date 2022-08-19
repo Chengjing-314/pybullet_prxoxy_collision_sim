@@ -9,7 +9,7 @@ def pc_thread(topic, pc_msg):
     global pose_switch_flag 
     pub = rospy.Publisher(topic, PointCloud2, queue_size=1)
     rospy.sleep(0.1) # allow time for the publisher to connect
-    rate = rospy.Rate(2)
+    rate = rospy.Rate(10)
     while not pose_switch_flag:
         pub.publish(pc_msg)
         rate.sleep()
@@ -20,12 +20,12 @@ def pc_thread(topic, pc_msg):
 def main():
     
     #General Parameters for World and Camera
-    num_world = 80
+    num_world = 1
     num_cam = 10
     
     #Parameter for PC, filter out points in z axis > distance
     filter = True
-    distance = 1.4
+    distance = 2.0
     
     
     global pose_switch_flag 
@@ -40,7 +40,7 @@ def main():
         for cam in range(num_cam):
             pose_switch_flag = False
             pc = fake_sensor(world, cam, path, filter, distance)
-            time.sleep(0.5) # Give time for frame publisher to connect and publish
+            time.sleep(2) # Give time for frame publisher to connect and publish
             pc_pub_thread = threading.Thread(target=pc_thread, args=("/camera/depth/points", pc))
             pc_pub_thread.start()
             time.sleep(0.5) # Give time for pc to publish

@@ -1,14 +1,14 @@
 import os
 import torch
 
-path =  "/home/chengjing/Desktop/octomap_experiment"
+path =  "/home/chengjing/Desktop/cam_test"
 cams = 10
 worlds = 1
 
 
 tacc, tprc, trecall, TPR, TNR = 0, 0, 0, 0, 0
 
-world = 'world_79'
+world = 'world_0'
 
 wpath = os.path.join(path, world)
 gt_label = torch.load(os.path.join(wpath, "collision_label.pt"))

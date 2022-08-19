@@ -17,7 +17,7 @@ from sensor_msgs.point_cloud2 import create_cloud_xyz32
 from tf2_sensor_msgs.tf2_sensor_msgs import do_transform_cloud
 import os
 import h5py
-
+import time
 
 pi = np.pi
 
@@ -48,6 +48,7 @@ class MoveitDataGen(object):
         gsvr = GetStateValidityRequest()
         gsvr.robot_state = rs
         gsvr.group_name = self.group_name 
+        time.sleep(0.1)
         for i, cfg in enumerate(tqdm(self.cfgs)):
             rs.joint_state.position = cfg
             result =self.sv_srv.call(gsvr)
@@ -63,14 +64,16 @@ class MoveitDataGen(object):
 
         
     
-    def cfg_visualization(self, cfgs, labels): # Test Purpose Only
+    def cfg_visualization(self, cfgs): # Test Purpose Only
         for i, cfg in enumerate(cfgs):
             input('------------------Press Enter To Continue------------------')
-            if labels[i] == 1:
-                print("In collision")
-            else:
-                print("No collision")
+            # if labels[i] == 1:
+            #     print("In collision")
+            # else:
+            #     print("No collision")
             self.trajectory_visual(cfg)
+            
+
 
 
     def cfg_visualize_all(self, cfgs, labels):

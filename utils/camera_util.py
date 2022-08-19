@@ -119,17 +119,17 @@ class PybulletCamera():
 
         cam_pose = np.array([cam_x, cam_y, cam_z]) 
 
-        rpy = self.get_camera_rpy(cam_pose)
+        quat = self.get_camera_quaternion(cam_pose)
 
 
-        return np.array([cam_x, cam_y, cam_z, rpy[0], rpy[1], rpy[2]])
+        return np.array([cam_x, cam_y, cam_z, quat[0], quat[1], quat[2], quat[3]])
 
     
 
     def pose_generation(self, num_poses,theta = np.pi * (1 / 3), phi = np.pi * (1 / 3) , radius = 1.65, x = 0.75, y = 0.4, z= 1.07, 
     theta_var = np.pi / 6, phi_var = np.pi / 12, radius_var = 0.05, theta_offset = 0.25):
 
-        poses = np.zeros((num_poses, 6))
+        poses = np.zeros((num_poses, 7))
 
         for i in range(num_poses):
             poses[i,:] = self.pose_gen(theta = theta, phi = phi, radius = radius,  x = x, y = y, z = z, 
@@ -151,11 +151,12 @@ class PybulletCamera():
 
     
     def get_camera_dict(self):
+        print("----- getiing cam dict -----")
         cam_dict = {}
         cam_list = []
         for i in range(self.num_poses):
             pose = self.poses[i]
-            cam_list.append({"xyz": pose[:3].tolist(), "rpy": pose[3:].tolist()})
+            cam_list.append({"xyz": pose[:3].tolist(), "quat": pose[3:].tolist()})
         cam_dict["pose"] = cam_list
         cam_dict["intrinsic"] = self.intrinsic.tolist()
         cam_dict["focus"] = self.focus
@@ -166,6 +167,22 @@ class PybulletCamera():
         cam_dict["multipler"] = self.multipler
         return cam_dict
 
+
+    def get_camera_quaternion(self, cam_translation):
+        
+        view_matrix = get_view_matrix(cam_translation, self.look_at, camera_up_vec=[0, 0, 1])
+        view_matrix = np.array(view_matrix).reshape(4,4).T # OpenGL is column major :(
+        # view_matrix = np.linalg.inv(view_matrix)
+        gl2cv = R.from_euler("X", np.pi).as_matrix()
+
+        rotation = np.linalg.inv(view_matrix[:3,:3]) @ gl2cv
+
+
+        quat = R.from_matrix(rotation).as_quat()
+        
+        return list(quat)
+
+        
 
 
     def get_camera_rpy(self, cam_translation):
