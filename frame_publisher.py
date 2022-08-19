@@ -46,7 +46,7 @@ class FramePublisher():
         
         t = geometry_msgs.msg.TransformStamped()
         t.header.frame_id = "world"
-        t.header.stamp = rospy.Time.now()
+        # t.header.stamp = rospy.Time.now()
         t.child_frame_id = "camera_frame"
 
 

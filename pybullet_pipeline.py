@@ -92,7 +92,7 @@ def main():
 
     for i, world in enumerate(tqdm(worlds, desc = "Total World")):
         
-        if client == None:
+        if client == None:  # hacky way to get opengl shadow working
             client = p.connect(p.GUI)
             pybullet_world.set_world_gravity()
             pybullet_world.load_default_world()
@@ -118,8 +118,10 @@ def main():
         world_dict = {world: pybullet_world.world[world]}
         
         
+        # Load panda arm         
         panda = PandaArm(panda_base_pose, num_robot_config, client, area_of_interest, seed, seed_num)
         
+        # Set panda to rest pose and take picture
         panda.set_pose(panda.rest_pose)
 
         for j in tqdm(range(num_camera_poses), desc = f"World {i}", leave= False):
@@ -127,6 +129,7 @@ def main():
             cam_path = os.path.join(world_save_path, cam_) 
             os.mkdir(cam_path)
 
+            # Get image from the jth camera pose
             color_img, depth_img, loaded_depth_img = camera.get_pose_img(j)
 
             camera.save_image(color_img, depth_img, cam_path, j)
@@ -149,6 +152,7 @@ def main():
             cfg_initialization = False
         
         else:
+            # load the previous cfg file
             
             panda.load_cfgs_aoi(os.path.join(save_path, "world_0"))
         
